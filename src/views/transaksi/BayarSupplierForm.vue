@@ -519,13 +519,13 @@ const confirmClose = async () => {
   border: 1px solid #cbd5e1; border-radius: 4px;
   font-size: 11px; outline: none;
 }
-.f-inp:focus { border-color: #2e2e7d; }
+.f-inp:focus { border-color: #3B5998; }
 .f-area {
   flex: 1; padding: 4px 8px;
   border: 1px solid #cbd5e1; border-radius: 4px;
   font-size: 11px; resize: none; outline: none;
 }
-.f-area:focus { border-color: #2e2e7d; }
+.f-area:focus { border-color: #3B5998; }
 .readonly-bg { background: #f1f5f9; color: #64748b; }
 
 .search-group {
@@ -545,12 +545,12 @@ const confirmClose = async () => {
 .w-70 { flex: 1; }
 .btn-srch {
   height: 28px; width: 32px; padding: 0;
-  background: #2e2e7d; color: white;
+  background: #3B5998; color: white;
   border: none; display: flex; align-items: center;
   justify-content: center; cursor: pointer; flex-shrink: 0;
 }
 .btn-srch:disabled { background: #9e9e9e; cursor: not-allowed; }
-.btn-green { background: #2e2e7d; }
+.btn-green { background: #3B5998; }
 
 .table-container {
   background: white; border-radius: 6px;
@@ -566,12 +566,12 @@ const confirmClose = async () => {
 .grid-table { width: 100%; border-collapse: collapse; font-size: 11px; }
 .grid-table thead th { position: sticky; top: 0; z-index: 1; }
 .grid-table th {
-  background: #2e2e7d; color: white;
+  background: #3B5998; color: white;
   padding: 7px 10px; font-size: 11px; font-weight: 700;
   text-transform: uppercase; white-space: nowrap;
 }
 .grid-table th.sortable { cursor: pointer; user-select: none; }
-.grid-table th.sortable:hover { background: #2e2e7d; }
+.grid-table th.sortable:hover { background: #3B5998; }
 .sort-icon { font-size: 9px; margin-left: 4px; }
 .grid-table td { padding: 5px 10px; border-bottom: 1px solid #f0f0f0; }
 .grid-table tbody tr:hover td { background: rgba(21,101,192,0.04); }
@@ -583,7 +583,7 @@ const confirmClose = async () => {
   font-size: 11px; font-weight: bold;
   background: #fffdf0; text-align: right; outline: none;
 }
-.cell-input:focus { border-color: #2e2e7d; }
+.cell-input:focus { border-color: #3B5998; }
 .cell-input:disabled { background: #f1f5f9; color: #9ca3af; }
 
 .footer-summary {

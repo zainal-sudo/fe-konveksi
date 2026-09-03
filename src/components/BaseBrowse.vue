@@ -1,6 +1,15 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, watch } from "vue";
+import { ref, computed, onMounted, watch, nextTick } from "vue";
+import { useRoute } from "vue-router";
 import PageLayout from "@/components/PageLayout.vue";
+import ColumnFilter, {
+  type FilterType,
+  type ColumnFilterValue,
+  type TextFilter,
+  type NumberFilter,
+  type DateFilter,
+  type SelectFilter,
+} from "@/components/ColumnFilter.vue";
 import {
   IconPlus,
   IconPencil,
@@ -27,14 +36,13 @@ import {
 const props = withDefaults(
   defineProps<{
     title: string;
-    menuId: string;
+    menuId?: string;
     icon?: any;
     headers: any[];
     items: any[];
     isLoading?: boolean;
     searchPlaceholder?: string;
     itemValue?: string;
-    idKey?: string; 
     canInsert?: boolean;
     canEdit?: boolean;
     canDelete?: boolean;
@@ -53,6 +61,7 @@ const props = withDefaults(
     fixedLayout?: boolean;
     filterValues?: Record<string, any>;
     autoRefresh?: boolean;
+    summaryColumns?: { key: string; label?: string; numFmt?: string }[];
   }>(),
   {
     icon: () => IconTable,
@@ -74,6 +83,7 @@ const props = withDefaults(
     fixedLayout: true,
     filterValues: () => ({}),
     autoRefresh: true,
+    summaryColumns: () => [],
   },
 );
 
@@ -102,7 +112,8 @@ watch(
   { deep: true },
 );
 
-const storageKey = computed(() => `finance_browse_${props.menuId}`);
+const route = useRoute();
+const storageKey = computed(() => `finance_browse_${route.path}`);
 const loadState = () => {
   try {
     return JSON.parse(sessionStorage.getItem(storageKey.value) || "null");
@@ -136,6 +147,7 @@ const pendingDeleteItem = ref<any>(null);
 onMounted(() => {
   if (saved?.filterState && Object.keys(saved.filterState).length > 0)
     emit("update:filterState", saved.filterState);
+  injectTfoot();
 });
 watch([search, currentPage, perPage, () => props.filterState], saveState, {
   flush: "post",
@@ -156,66 +168,42 @@ const finalHeaders = computed(() => {
   ];
 });
 
-// ── Column Filters ──────────────────────────────────────────────────────
-const columnFilters = ref<Record<string, Set<string>>>({});
+// ── Column Filters (type-aware) ──────────────────────────────────────────
+const columnFilters = ref<Record<string, ColumnFilterValue>>({});
 const activeFilterCol = ref<string | null>(null);
 const filterDropdownStyle = ref<Record<string, string>>({});
-const colFilterSearch = ref<Record<string, string>>({});
 const colWidths = ref<Record<string, number>>({});
 
-const uniqueValuesPerCol = computed(() => {
-  const result: Record<string, string[]> = {};
-  for (const h of props.headers) {
-    const key = h.key;
-    if (!key || key === "data-table-expand") continue;
-    const vals = new Set<string>();
-    for (const item of props.items) vals.add(String(item[key] ?? ""));
-    result[key] = Array.from(vals).sort((a, b) =>
-      a.localeCompare(b, "id", { numeric: true }),
-    );
-  }
-  return result;
-});
+// Auto-detect filter type from header config or data
+const resolveFilterType = (header: any): FilterType => {
+  if (header.filterType) return header.filterType;
+  const key = header.key || "";
+  // Date patterns
+  if (/^(Tanggal|JthTempo|Tanggal.*|Date|date)$/i.test(key)) return "date";
+  // Number patterns (right-aligned columns or known numeric keys)
+  if (header.align === "right") return "number";
+  if (/^(Debet|Kredit|Stok|Total|Saldo|Nilai|Harga|Bayar|Potongan|Giro|Cash|Transfer|PPN|PPH|Mutasi|REAL_|Tambah|Kurang|Buku|Bank|Selisih|Het|HNA|Retur|Disc|Freight|CN|Kontrak|Biaya|Nominal|Avgs|TOR|Min|Disc_Salesman)$/i.test(key)) return "number";
+  // Default: select (checkbox-based)
+  return "select";
+};
 
-const filteredUniqueVals = (key: string) => {
-  const s = (colFilterSearch.value[key] ?? "").toLowerCase();
-  const all = uniqueValuesPerCol.value[key] ?? [];
-  return s ? all.filter((v) => v.toLowerCase().includes(s)) : all;
+const colFilterType = (key: string): FilterType => {
+  const h = props.headers.find((x: any) => x.key === key);
+  return h ? resolveFilterType(h) : "select";
 };
+
 const colHasFilter = (key: string) => {
-  const s = columnFilters.value[key];
-  if (!s) return false;
-  return s.size < (uniqueValuesPerCol.value[key]?.length ?? 0);
+  return columnFilters.value[key] !== null && columnFilters.value[key] !== undefined;
 };
+
 const activeFilterCount = computed(
   () => Object.keys(columnFilters.value).filter((k) => colHasFilter(k)).length,
 );
-const toggleColFilter = (key: string, val: string) => {
-  if (!columnFilters.value[key])
-    columnFilters.value[key] = new Set(uniqueValuesPerCol.value[key] ?? []);
-  const s = columnFilters.value[key];
-  s.has(val) ? s.delete(val) : s.add(val);
-  columnFilters.value = { ...columnFilters.value };
-  currentPage.value = 1;
-};
-const selectAllCol = (key: string) => {
-  columnFilters.value[key] = new Set(uniqueValuesPerCol.value[key] ?? []);
-  columnFilters.value = { ...columnFilters.value };
-  currentPage.value = 1;
-};
-const hideAllCol = (key: string) => {
-  columnFilters.value[key] = new Set();
-  columnFilters.value = { ...columnFilters.value };
-  currentPage.value = 1;
-};
+
 const openColFilter = (key: string, event: MouseEvent) => {
   if (activeFilterCol.value === key) {
     activeFilterCol.value = null;
     return;
-  }
-  if (!columnFilters.value[key]) {
-    columnFilters.value[key] = new Set(uniqueValuesPerCol.value[key] ?? []);
-    columnFilters.value = { ...columnFilters.value };
   }
   const th = (event.currentTarget as HTMLElement).closest("th");
   if (th) {
@@ -224,23 +212,28 @@ const openColFilter = (key: string, event: MouseEvent) => {
       position: "fixed",
       top: `${rect.bottom + 2}px`,
       left: `${rect.left}px`,
-      zIndex: "9999",
     };
   }
   activeFilterCol.value = key;
-  if (!colFilterSearch.value[key]) colFilterSearch.value[key] = "";
 };
 const closeColFilter = () => {
   activeFilterCol.value = null;
 };
-const onTableWrapClick = (e: MouseEvent) => {
-  const target = e.target as HTMLElement;
-  if (
-    !target.closest(".col-filter-dropdown") &&
-    !target.closest(".col-filter-btn")
-  )
-    closeColFilter();
+const onColFilterUpdate = (key: string, val: ColumnFilterValue | null) => {
+  if (val === null) {
+    const newFilters = { ...columnFilters.value };
+    delete newFilters[key];
+    columnFilters.value = newFilters;
+  } else {
+    columnFilters.value = { ...columnFilters.value, [key]: val };
+  }
+  currentPage.value = 1;
 };
+const activeFilterColTitle = computed(() => {
+  if (!activeFilterCol.value) return "";
+  const h = props.headers.find((x: any) => x.key === activeFilterCol.value);
+  return h?.title || activeFilterCol.value;
+});
 
 // ── Column Resize ────────────────────────────────────────────────────────
 let resizing: { key: string; startX: number; startW: number } | null = null;
@@ -287,6 +280,80 @@ const colStyle = (col: any) => {
   return {};
 };
 
+// ── Type-aware filter matching ──────────────────────────────────────────
+const matchTextFilter = (val: string, f: TextFilter): boolean => {
+  const s = String(val ?? "").toLowerCase();
+  const fv = f.value.toLowerCase();
+  switch (f.operator) {
+    case "contains": return s.includes(fv);
+    case "equals": return s === fv;
+    case "not_contains": return !s.includes(fv);
+    case "starts_with": return s.startsWith(fv);
+    case "ends_with": return s.endsWith(fv);
+    case "empty": return s === "";
+    case "not_empty": return s !== "";
+    default: return true;
+  }
+};
+
+const matchNumberFilter = (val: any, f: NumberFilter): boolean => {
+  const n = Number(val);
+  if (isNaN(n) && f.operator !== "between") return false;
+  switch (f.operator) {
+    case "=": return n === f.value;
+    case "!=": return n !== f.value;
+    case "<": return n < (f.value ?? 0);
+    case ">": return n > (f.value ?? 0);
+    case "<=": return n <= (f.value ?? 0);
+    case ">=": return n >= (f.value ?? 0);
+    case "between": {
+      const from = f.value ?? -Infinity;
+      const to = f.valueTo ?? Infinity;
+      return n >= from && n <= to;
+    }
+    default: return true;
+  }
+};
+
+const matchDateFilter = (val: any, f: DateFilter): boolean => {
+  const s = String(val ?? "").substring(0, 10); // extract yyyy-mm-dd part
+  if (f.operator === "between") {
+    const from = f.value || "0000-00-00";
+    const to = f.valueTo || "9999-99-99";
+    return s >= from && s <= to;
+  }
+  if (f.operator === "equals") return s === f.value;
+  if (f.operator === "before") return s < f.value;
+  if (f.operator === "after") return s > f.value;
+  return true;
+};
+
+const matchSelectFilter = (val: any, f: SelectFilter): boolean => {
+  return f.allowed.has(String(val ?? ""));
+};
+
+const matchColumnFilter = (val: any, filter: ColumnFilterValue): boolean => {
+  if ("operator" in filter && "value" in filter && "valueTo" in filter && typeof (filter as any).value === "string") {
+    // Check if it's a DateFilter (value is string)
+    if (typeof filter.value === "string" && ("valueTo" in filter)) {
+      // Could be date or text. Distinguish by checking if operator is a date operator
+      const dateOps = ["between", "equals", "before", "after"];
+      if (dateOps.includes(filter.operator as string)) {
+        return matchDateFilter(val, filter as DateFilter);
+      }
+    }
+  }
+  if ("allowed" in filter) return matchSelectFilter(val, filter as SelectFilter);
+  if ("operator" in filter && "value" in filter) {
+    const f = filter as TextFilter | NumberFilter;
+    if (typeof f.value === "number" || (!isNaN(Number(f.value)) && f.value !== "")) {
+      return matchNumberFilter(val, filter as NumberFilter);
+    }
+    return matchTextFilter(val, filter as TextFilter);
+  }
+  return true;
+};
+
 // ── Filtered & Paged items ───────────────────────────────────────────────
 const filteredItems = computed(() => {
   let result = props.items;
@@ -300,23 +367,28 @@ const filteredItems = computed(() => {
       ),
     );
   }
-  for (const [key, allowed] of Object.entries(columnFilters.value)) {
-    const total = uniqueValuesPerCol.value[key]?.length ?? 0;
-    if (!allowed || allowed.size >= total) continue;
-    result = result.filter((item) => allowed.has(String(item[key] ?? "")));
+  for (const [key, filter] of Object.entries(columnFilters.value)) {
+    if (!filter) continue;
+    result = result.filter((item) => matchColumnFilter(item[key], filter));
   }
   return result;
 });
 
-// ── Summary ──────────────────────────────────────────────────────────────
+const onTableWrapClick = (e: MouseEvent) => {
+  const target = e.target as HTMLElement;
+  if (
+    !target.closest(".cf-dropdown") &&
+    !target.closest(".col-filter-btn")
+  )
+    closeColFilter();
+};
+
+// ── Summary (tfoot inside table) ───────────────────────────────────
 const tableWrapRef = ref<HTMLElement | null>(null);
+const dataTableRef = ref<any>(null);
 const summaryBarRef = ref<HTMLElement | null>(null);
 const onTableScroll = () => {
-  const scroller = tableWrapRef.value?.querySelector(
-    ".v-table__wrapper",
-  ) as HTMLElement | null;
-  if (scroller && summaryBarRef.value)
-    summaryBarRef.value.scrollLeft = scroller.scrollLeft;
+  /* no-op, tfoot scrolls with table */
 };
 const summaryTotal = computed(() => {
   if (!props.summaryKey) return 0;
@@ -325,18 +397,89 @@ const summaryTotal = computed(() => {
     0,
   );
 });
-const summaryFormatted = computed(() => {
-  const val = summaryTotal.value;
-  if (props.summaryKey === "nilai") {
-    return new Intl.NumberFormat("id-ID", {
-      style: "currency",
-      currency: "IDR",
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    }).format(val);
+const summaryFormatted = computed(() =>
+  new Intl.NumberFormat("id-ID").format(summaryTotal.value),
+);
+
+// Calculate totals for summaryColumns
+const summaryTotals = computed(() => {
+  const result: Record<string, string> = {};
+  for (const col of props.summaryColumns) {
+    const total = filteredItems.value.reduce(
+      (sum, item) => sum + (Number(item[col.key]) || 0),
+      0,
+    );
+    result[col.key] = new Intl.NumberFormat("id-ID").format(total);
   }
-  return new Intl.NumberFormat("id-ID").format(val);
+  return result;
 });
+const hasSummaryRow = computed(
+  () => props.summaryColumns.length > 0 || !!props.summaryKey || false,
+);
+
+// Inject <tfoot> into the actual <table> element
+const injectTfoot = () => {
+  if (!hasSummaryRow.value) return;
+  nextTick(() => {
+    const wrapper = tableWrapRef.value?.querySelector(
+      ".v-table__wrapper",
+    ) as HTMLElement | null;
+    if (!wrapper) return;
+    const table = wrapper.querySelector("table") as HTMLTableElement | null;
+    if (!table) return;
+
+    // Remove old tfoot if exists
+    const oldTfoot = table.querySelector("tfoot");
+    if (oldTfoot) oldTfoot.remove();
+
+    // Build tfoot
+    const tfoot = document.createElement("tfoot");
+    const tr = document.createElement("tr");
+    tr.className = "summary-tfoot-row";
+
+    // Get all <th> from thead to know how many columns
+    const ths = table.querySelectorAll("thead th");
+    const totalCols = ths.length;
+
+    // Map summaryColumns by key for quick lookup
+    const summaryMap: Record<string, string> = {};
+    for (const col of props.summaryColumns) {
+      summaryMap[col.key] = summaryTotals.value[col.key] || "0";
+    }
+
+    // Find which header keys map to which column index
+    const headerKeys: string[] = [];
+    ths.forEach((th) => {
+      // Vuetify stores the column key in data attribute or we can match by title
+      const text = (th as HTMLElement).textContent?.trim() || "";
+      headerKeys.push(text);
+    });
+
+    // Get the actual header keys from props.headers
+    const colKeys = props.headers.map((h: any) => h.key);
+
+    for (let i = 0; i < totalCols; i++) {
+      const td = document.createElement("td");
+      td.className = "summary-tfoot-td";
+
+      // Check if this column has a summary value
+      const key = colKeys[i] || "";
+      if (summaryMap[key]) {
+        td.textContent = summaryMap[key];
+        td.classList.add("summary-tfoot-val");
+      } else if (i === 0) {
+        td.textContent = "TOTAL";
+        td.classList.add("summary-tfoot-label");
+      }
+
+      tr.appendChild(td);
+    }
+
+    tfoot.appendChild(tr);
+    table.appendChild(tfoot);
+  });
+};
+
 // ── Pagination ────────────────────────────────────────────────────────────
 const totalItems = computed(() => filteredItems.value.length);
 const totalPages = computed(() =>
@@ -377,6 +520,18 @@ const onSearch = (val: string) => {
   search.value = val;
   currentPage.value = 1;
 };
+
+// Inject tfoot whenever data changes or table re-renders
+watch(
+  () => [pagedItems.value.length, hasSummaryRow.value, props.summaryColumns, props.items],
+  () => injectTfoot(),
+  { deep: true },
+);
+watch(
+  () => pagedItems.value,
+  () => injectTfoot(),
+  { deep: true },
+);
 
 // ── Row click ───────────────────────────────────────────────────────────
 const handleRowClick = (event: PointerEvent, { item }: { item: any }) => {
@@ -431,12 +586,6 @@ const emptyStateSubtext = computed(() =>
 
 const clearSelection = () => {
   internalSelected.value = [];
-  const clearSearch = () => {
-  search.value = "";
-  try {
-    sessionStorage.removeItem(storageKey.value);
-  } catch {}
-};
 };
 
 const tableLayout = computed(() => (props.fixedLayout ? "fixed" : "auto"));
@@ -495,7 +644,6 @@ watch(
         Export
       </v-btn>
       <slot name="extra-actions" :selected="internalSelected" />
-      
     </template>
 
     <div class="browse-content">
@@ -689,23 +837,8 @@ watch(
                 </td>
               </tr>
             </template>
-          </v-data-table>
-        </div>
 
-        <div
-          v-if="summaryKey || $slots['summary-row']"
-          class="summary-bar-outer"
-          ref="summaryBarRef"
-        >
-          <div class="summary-bar-inner">
-            <template v-if="$slots['summary-row']">
-              <slot name="summary-row" :filtered-items="filteredItems" />
-            </template>
-            <template v-else>
-              <span class="summary-lbl">{{ summaryLabel || summaryKey }}</span>
-              <span class="summary-val">{{ summaryFormatted }}</span>
-            </template>
-          </div>
+          </v-data-table>
         </div>
       </div>
 
@@ -783,7 +916,7 @@ watch(
 
     <!-- Delete Dialog -->
     <v-dialog v-model="deleteDialog" max-width="400" persistent>
-      <v-card rounded="lg">
+      <v-card rounded="false">
         <v-card-item>
           <template #prepend>
             <v-avatar color="error" variant="tonal" size="38">
@@ -814,58 +947,17 @@ watch(
   </PageLayout>
 
   <Teleport to="body">
-    <div
+    <ColumnFilter
       v-if="activeFilterCol"
-      class="col-filter-dropdown"
-      :style="filterDropdownStyle"
-      @click.stop
-    >
-      <div class="cfd-search">
-        <input
-          v-model="colFilterSearch[activeFilterCol]"
-          type="text"
-          placeholder="Cari..."
-          class="cfd-search-input"
-          @click.stop
-        />
-      </div>
-      <div class="cfd-actions">
-        <button class="cfd-action-btn" @click="selectAllCol(activeFilterCol)">
-          Tampilkan Semua
-        </button>
-        <span class="cfd-sep">|</span>
-        <button
-          class="cfd-action-btn text-error"
-          @click="hideAllCol(activeFilterCol)"
-        >
-          Sembunyikan Semua
-        </button>
-      </div>
-      <div class="cfd-divider" />
-      <div class="cfd-list">
-        <label
-          v-for="val in filteredUniqueVals(activeFilterCol)"
-          :key="val"
-          class="cfd-item"
-        >
-          <input
-            type="checkbox"
-            :checked="columnFilters[activeFilterCol]?.has(val) ?? true"
-            @change="toggleColFilter(activeFilterCol, val)"
-          />
-          <span class="cfd-val">{{ val === "" ? "(Kosong)" : val }}</span>
-        </label>
-        <div
-          v-if="filteredUniqueVals(activeFilterCol).length === 0"
-          class="cfd-empty"
-        >
-          Tidak ada hasil
-        </div>
-      </div>
-      <div class="cfd-footer">
-        <button class="cfd-ok-btn" @click="closeColFilter">OK</button>
-      </div>
-    </div>
+      :filter-type="colFilterType(activeFilterCol)"
+      :column-key="activeFilterCol"
+      :title="activeFilterColTitle"
+      :items="items"
+      :model-value="columnFilters[activeFilterCol] ?? null"
+      :dropdown-style="filterDropdownStyle"
+      @update:model-value="onColFilterUpdate(activeFilterCol, $event)"
+      @close="closeColFilter"
+    />
   </Teleport>
 </template>
 
@@ -885,16 +977,17 @@ watch(
 .filter-bar {
   display: flex;
   align-items: center;
-  gap: 10px;
-  background: rgb(var(--v-theme-surface));
-  border: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
-  border-radius: 6px;
-  padding: 8px 14px;
+  gap: 8px;
+  background: var(--ds-surface, #F0F3F8);
+  border: 1px solid var(--ds-border, #A0AAB8);
+  border-radius: 0;
+  padding: 6px 12px;
   flex-shrink: 0;
-  min-height: 52px;
+  min-height: 44px;
   flex-wrap: wrap;
-  row-gap: 6px;
-  column-gap: 10px;
+  row-gap: 4px;
+  column-gap: 8px;
+  box-shadow: none;
 }
 .search-field {
   width: 160px;
@@ -904,6 +997,7 @@ watch(
 .search-field :deep(.v-field) {
   height: 32px;
   font-size: 12px;
+  border-radius: 0;
 }
 .search-field :deep(.v-field__input) {
   padding-top: 0;
@@ -923,11 +1017,13 @@ watch(
 .table-section {
   display: flex;
   flex-direction: column;
-  border: 1px solid #e0e0e0;
-  border-radius: 6px;
+  border: 1px solid var(--ds-border, #A0AAB8);
+  border-radius: 0;
   overflow: auto;
   flex: 1;
   min-height: 0;
+  background: var(--ds-surface, #ffffff);
+  box-shadow: none;
 }
 .table-wrap {
   flex: 1;
@@ -944,40 +1040,42 @@ watch(
   min-height: 0;
 }
 
-/* Header tabel — HIJAU (beda dari Garmen yang biru) */
+/* Header tabel */
 .base-table :deep(thead th) {
-  background-color: #2e2e7d !important;
+  background: #3B5998 !important;
   color: white !important;
-  font-size: 11px !important;
+  font-size: 10.5px !important;
   font-weight: 700 !important;
   text-transform: uppercase;
-  letter-spacing: 0.03em;
-  height: 34px !important;
+  letter-spacing: 0.04em;
+  height: 32px !important;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  border-bottom: 2px solid #2C4472 !important;
+  box-shadow: none;
 }
 .base-table :deep(tbody td) {
   font-size: 12px;
   height: 28px !important;
   padding: 0 8px !important;
-  border-bottom: 1px solid rgba(var(--v-border-color), var(--v-border-opacity)) !important;
+  border-bottom: 1px solid var(--ds-border, #A0AAB8) !important;
   white-space: nowrap !important;
   overflow: hidden !important;
   text-overflow: ellipsis !important;
 }
-.base-table :deep(tbody tr:nth-of-type(odd)) {
-  background-color: rgba(var(--v-theme-on-surface), 0.02);
+.base-table :deep(tbody tr:nth-child(even)) {
+  background-color: #F0F3F8;
 }
 .base-table :deep(tbody tr:hover) {
-  background-color: rgba(46, 46, 125, 0.07) !important;
+  background-color: var(--ds-primary-50, #E8EDF5) !important;
 }
 .base-table :deep(tbody tr.row-selected) {
-  background-color: rgba(46, 46, 125, 0.15) !important;
-  color: #2e2e7d !important;
+  background-color: #D6E4F0 !important;
+  color: #1B2D4A !important;
 }
 .base-table :deep(tbody tr.row-selected:hover) {
-  background-color: rgba(46, 46, 125, 0.22) !important;
+  background-color: #C0D4E8 !important;
 }
 .base-table :deep(table) {
   table-layout: v-bind(tableLayout) !important;
@@ -1016,7 +1114,7 @@ watch(
 /* Expanded row */
 .expanded-cell {
   padding: 0 !important;
-  background-color: rgba(var(--v-theme-surface-variant), 0.35) !important;
+  background-color: #F0F3F8 !important;
 }
 .expanded-inner {
   padding: 6px 10px;
@@ -1024,44 +1122,47 @@ watch(
   justify-content: flex-start;
 }
 
-/* Summary bar — hijau */
-.summary-bar-outer {
-  overflow-x: hidden;
-  overflow-y: hidden;
-  background: #2e2e7d;
-  flex-shrink: 0;
-  border-top: 2px solid #1b1b5e;
+/* ── Tfoot summary row — real <tfoot> inside <table> ── */
+.base-table :deep(tfoot tr.summary-tfoot-row) {
+  background: #E8EDF5;
+  border-top: 2px solid #3B5998;
 }
-.summary-bar-inner {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 12px;
-  padding: 5px 12px;
+.base-table :deep(tfoot td.summary-tfoot-td) {
+  font-size: 12px;
   height: 30px;
+  padding: 0 8px !important;
+  border-bottom: none !important;
   white-space: nowrap;
-  min-width: max-content;
+  position: sticky;
+  bottom: 0;
+  z-index: 2;
+  background: inherit;
 }
-.summary-lbl {
-  font-size: 11px;
-  font-weight: 600;
-  color: rgba(255, 255, 255, 0.8);
-}
-.summary-val {
-  font-size: 13px;
+.base-table :deep(tfoot td.summary-tfoot-label) {
   font-weight: 700;
-  color: white;
+  color: var(--ds-primary-dark, #2C4472);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  font-size: 11px;
+}
+.base-table :deep(tfoot td.summary-tfoot-val) {
+  font-weight: 700;
+  color: var(--ds-primary-dark, #2C4472);
   font-family: monospace;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
 }
 
 /* Pagination */
 .pagination-bar {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   padding: 4px 8px;
   flex-shrink: 0;
-  border-top: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
+  border-top: 1px solid var(--ds-border, #A0AAB8);
+  background: var(--ds-surface, #F0F3F8);
+  min-height: 30px;
 }
 .page-info {
   font-size: 12px;
@@ -1077,27 +1178,24 @@ watch(
   min-width: 28px;
   height: 28px;
   padding: 0 6px;
-  border: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
-  border-radius: 5px;
-  background: rgb(var(--v-theme-surface));
+  border: 1px solid var(--ds-border, #A0AAB8);
+  border-radius: 0;
+  background: var(--ds-surface, #ffffff);
   font-size: 12px;
   font-weight: 500;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  transition:
-    background 0.15s,
-    color 0.15s;
 }
 .page-btn:hover:not(:disabled) {
-  background: rgba(46, 46, 125, 0.1);
-  border-color: rgba(46, 46, 125, 0.4);
-  color: #2e2e7d;
+  background: #E8EDF5;
+  border-color: var(--ds-primary, #3B5998);
+  color: var(--ds-primary, #3B5998);
 }
 .page-btn.active {
-  background: #2e2e7d;
-  border-color: #2e2e7d;
+  background: var(--ds-primary, #3B5998);
+  border-color: var(--ds-primary, #3B5998);
   color: white;
   font-weight: 700;
 }
@@ -1108,11 +1206,11 @@ watch(
 .jump-input {
   width: 42px;
   height: 28px;
-  border: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
-  border-radius: 5px;
+  border: 1px solid var(--ds-border, #A0AAB8);
+  border-radius: 0;
   text-align: center;
   font-size: 12px;
-  background: rgb(var(--v-theme-surface));
+  background: var(--ds-surface, #ffffff);
   outline: none;
   margin-left: 6px;
   -moz-appearance: textfield;
@@ -1123,7 +1221,7 @@ watch(
   -webkit-appearance: none;
 }
 .jump-input:focus {
-  border-color: #2e2e7d;
+  border-color: var(--ds-primary, #3B5998);
 }
 .page-of {
   font-size: 12px;
@@ -1138,20 +1236,20 @@ watch(
 .per-page-select {
   height: 28px;
   padding: 0 4px;
-  border: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
-  border-radius: 5px;
+  border: 1px solid var(--ds-border, #A0AAB8);
+  border-radius: 0;
   font-size: 12px;
-  background: rgb(var(--v-theme-surface));
+  background: var(--ds-surface, #ffffff);
   cursor: pointer;
   outline: none;
 }
 .per-page-select:focus {
-  border-color: #2e2e7d;
+  border-color: var(--ds-primary, #3B5998);
 }
 
 /* Custom header th */
 .base-th {
-  background-color: #2e2e7d !important;
+  background-color: #3B5998 !important;
   color: white !important;
   font-size: 11px !important;
   font-weight: 700 !important;
@@ -1182,7 +1280,7 @@ watch(
   width: 16px;
   height: 16px;
   border: 1px solid rgba(255, 255, 255, 0.35);
-  border-radius: 3px;
+  border-radius: 0;
   background: transparent;
   color: rgba(255, 255, 255, 0.7);
   cursor: pointer;
@@ -1190,7 +1288,6 @@ watch(
   align-items: center;
   justify-content: center;
   padding: 0;
-  transition: all 0.15s;
 }
 .col-filter-btn:hover {
   background: rgba(255, 255, 255, 0.2);
@@ -1210,7 +1307,6 @@ watch(
   cursor: col-resize;
   z-index: 10;
   border-right: 2px solid rgba(255, 255, 255, 0.25);
-  transition: border-color 0.15s;
 }
 .col-resize-handle:hover,
 .col-resize-handle:active {
@@ -1219,119 +1315,7 @@ watch(
 </style>
 
 <style>
-/* Column Filter Dropdown — global */
-.col-filter-dropdown {
-  background: rgb(var(--v-theme-surface));
-  border: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
-  border-radius: 6px;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.18);
-  width: 220px;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-  font-family: "Inter", system-ui, sans-serif;
-}
-.cfd-search {
-  padding: 8px 8px 4px;
-}
-.cfd-search-input {
-  width: 100%;
-  height: 28px;
-  border: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
-  border-radius: 4px;
-  padding: 0 8px;
-  font-size: 12px;
-  outline: none;
-  box-sizing: border-box;
-  background: rgb(var(--v-theme-surface));
-  color: rgb(var(--v-theme-on-surface));
-}
-.cfd-search-input:focus {
-  border-color: #2e2e7d;
-}
-.cfd-actions {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  padding: 4px 8px;
-}
-.cfd-action-btn {
-  background: none;
-  border: none;
-  font-size: 11px;
-  color: #2e2e7d;
-  cursor: pointer;
-  padding: 2px 0;
-}
-.cfd-action-btn:hover {
-  text-decoration: underline;
-}
-.cfd-action-btn.text-error {
-  color: #c62828;
-}
-.cfd-sep {
-  color: rgba(var(--v-border-color), var(--v-border-opacity));
-  font-size: 11px;
-}
-.cfd-divider {
-  height: 1px;
-  background: rgba(var(--v-border-color), var(--v-border-opacity));
-}
-.cfd-list {
-  max-height: 240px;
-  overflow-y: auto;
-  padding: 4px 0;
-}
-.cfd-item {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 3px 10px;
-  cursor: pointer;
-  font-size: 12px;
-  color: rgb(var(--v-theme-on-surface));
-  transition: background 0.1s;
-}
-.cfd-item:hover {
-  background: rgba(46, 46, 125, 0.07);
-}
-.cfd-item input[type="checkbox"] {
-  width: 13px;
-  height: 13px;
-  cursor: pointer;
-  flex-shrink: 0;
-  accent-color: #2e2e7d;
-}
-.cfd-val {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.cfd-empty {
-  padding: 8px 10px;
-  font-size: 11px;
-  color: rgba(var(--v-theme-on-surface), 0.4);
-  text-align: center;
-}
-.cfd-footer {
-  padding: 6px 8px;
-  border-top: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
-  display: flex;
-  justify-content: flex-end;
-}
-.cfd-ok-btn {
-  background: #2e2e7d;
-  color: white;
-  border: none;
-  border-radius: 4px;
-  padding: 4px 16px;
-  font-size: 12px;
-  font-weight: 600;
-  cursor: pointer;
-}
-.cfd-ok-btn:hover {
-  opacity: 0.88;
-}
+/* Column filter styles now in ColumnFilter.vue */
 
 /* ── Responsif ── */
 
@@ -1358,15 +1342,9 @@ watch(
     font-size: 11px;
     height: 26px !important;
   }
-  .summary-bar-inner {
+  .base-table :deep(tfoot td.summary-tfoot-td) {
     height: 28px;
-    padding: 4px 10px;
-  }
-  .summary-lbl {
-    font-size: 10px;
-  }
-  .summary-val {
-    font-size: 12px;
+    font-size: 11px;
   }
   .pagination-bar {
     padding: 3px 6px;
@@ -1431,17 +1409,10 @@ watch(
     width: 100px;
     min-width: 80px;
   }
-  /* Summary ringkas */
-  .summary-bar-inner {
-    padding: 3px 8px;
+  .base-table :deep(tfoot td.summary-tfoot-td) {
     height: 26px;
-    gap: 8px;
-  }
-  .summary-lbl {
-    display: none;
-  } /* Hanya tampilkan nilai */
-  .summary-val {
-    font-size: 11px;
+    font-size: 10px;
+    padding: 0 5px !important;
   }
   /* Pagination ringkas */
   .pagination-bar {

@@ -255,6 +255,6 @@ const doExport = async () => {
 }
 .date-inp:focus { border-color: #1976d2; }
 .tc { text-align: center; }
-.badge-yes { background:#e8e8f5; color:#2e2e7d; padding:1px 8px; border-radius:10px; font-size:10px; font-weight:700; }
+.badge-yes { background:#e8e8f5; color:#3B5998; padding:1px 8px; border-radius:10px; font-size:10px; font-weight:700; }
 .badge-no  { background:#f5f5f5; color:#9e9e9e; padding:1px 8px; border-radius:10px; font-size:10px; font-weight:700; }
 </style>

@@ -38,7 +38,10 @@ const emptyForm = (): StbjForm => ({
 });
 const todayLocal = () => {
   const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(
+    2,
+    "0"
+  )}-${String(d.getDate()).padStart(2, "0")}`;
 };
 
 const form = ref<StbjForm>({
@@ -216,12 +219,19 @@ const confirmClose = async () => {
 onMounted(() => loadData());
 
 const fmtQty = (v: number) =>
-  new Intl.NumberFormat("id-ID", { minimumFractionDigits: 0, maximumFractionDigits: 4 }).format(v || 0);
+  new Intl.NumberFormat("id-ID", {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 4,
+  }).format(v || 0);
 </script>
 
 <template>
   <BaseForm
-    :title="isEdit ? 'Ubah Surat Terima Barang Jadi' : 'Surat Terima Barang Jadi Baru (STBJ)'"
+    :title="
+      isEdit
+        ? 'Ubah Surat Terima Barang Jadi'
+        : 'Surat Terima Barang Jadi Baru (STBJ)'
+    "
     :icon="IconPackage"
     :menu-id="MENU_ID"
     :is-loading="isLoading"
@@ -242,7 +252,13 @@ const fmtQty = (v: number) =>
           <!-- No STBJ -->
           <div class="f-row">
             <label class="f-lbl">No. STBJ</label>
-            <input type="text" v-model="form.nomor" class="f-inp readonly-bg" placeholder="[ OTOMATIS ]" readonly />
+            <input
+              type="text"
+              v-model="form.nomor"
+              class="f-inp readonly-bg"
+              placeholder="[ OTOMATIS ]"
+              readonly
+            />
           </div>
 
           <!-- Tanggal -->
@@ -255,9 +271,26 @@ const fmtQty = (v: number) =>
           <div class="f-row full-col">
             <label class="f-lbl">Gudang Tujuan</label>
             <div class="search-group">
-              <input type="text" :value="form.gdgKode" class="f-inp readonly-bg" style="width:90px;flex:none;" readonly placeholder="Kode" />
-              <input type="text" :value="form.gdgNama" class="f-inp readonly-bg" readonly placeholder="Pilih gudang tujuan..." />
-              <button class="btn-srch btn-blue" type="button" @click="openGudangModal">
+              <input
+                type="text"
+                :value="form.gdgKode"
+                class="f-inp readonly-bg"
+                style="width: 90px; flex: none"
+                readonly
+                placeholder="Kode"
+              />
+              <input
+                type="text"
+                :value="form.gdgNama"
+                class="f-inp readonly-bg"
+                readonly
+                placeholder="Pilih gudang tujuan..."
+              />
+              <button
+                class="btn-srch btn-blue"
+                type="button"
+                @click="openGudangModal"
+              >
                 <IconSearch :size="14" />
               </button>
             </div>
@@ -267,7 +300,12 @@ const fmtQty = (v: number) =>
         <!-- Keterangan -->
         <div class="f-row align-start mt-1">
           <label class="f-lbl mt-1">Keterangan</label>
-          <textarea v-model="form.memo" class="f-txa" rows="2" placeholder="Catatan penerimaan..."></textarea>
+          <textarea
+            v-model="form.memo"
+            class="f-txa"
+            rows="2"
+            placeholder="Catatan penerimaan..."
+          ></textarea>
         </div>
       </div>
 
@@ -276,7 +314,9 @@ const fmtQty = (v: number) =>
         <div class="summary-box">
           <div class="summary-lbl">TOTAL JUMLAH</div>
           <div class="summary-val">{{ fmtQty(totalJumlah) }}</div>
-          <div class="summary-sub">Total Koli: {{ fmtQty(totalKoli) }} | {{ form.detail.length }} item</div>
+          <div class="summary-sub">
+            Total Koli: {{ fmtQty(totalKoli) }} | {{ form.detail.length }} item
+          </div>
         </div>
       </div>
     </div>
@@ -285,7 +325,12 @@ const fmtQty = (v: number) =>
     <div class="detail-section mt-4">
       <div class="section-title mb-2 flex justify-between align-center">
         <span>Detail Barang Jadi</span>
-        <v-btn size="small" color="primary" variant="flat" @click="openBarangModal">
+        <v-btn
+          size="small"
+          color="primary"
+          variant="flat"
+          @click="openBarangModal"
+        >
           <template #prepend><IconPlus :size="14" /></template>
           Tambah Barang
         </v-btn>
@@ -295,13 +340,13 @@ const fmtQty = (v: number) =>
         <table class="dtl-tbl">
           <thead>
             <tr>
-              <th class="tc" style="width:36px;">NO</th>
-              <th style="width:130px;">BARCODE</th>
+              <th class="tc" style="width: 36px">NO</th>
+              <th style="width: 130px">BARCODE</th>
               <th>NAMA BARANG</th>
-              <th style="width:100px;" class="tr th-terima">JUMLAH ✎</th>
-              <th style="width:80px;" class="tr th-terima">KOLI ✎</th>
-              <th style="width:200px;">KETERANGAN ✎</th>
-              <th class="tc" style="width:40px;">AKSI</th>
+              <th style="width: 100px" class="tr th-terima">JUMLAH ✎</th>
+              <th style="width: 80px" class="tr th-terima">KOLI ✎</th>
+              <th style="width: 200px">KETERANGAN ✎</th>
+              <th class="tc" style="width: 40px">AKSI</th>
             </tr>
           </thead>
           <tbody>
@@ -311,25 +356,53 @@ const fmtQty = (v: number) =>
               </td>
             </tr>
             <tr v-for="(row, idx) in form.detail" :key="idx">
-              <td class="tc text-grey-darken-1 font-weight-bold">{{ idx + 1 }}</td>
-              <td><span class="mono">{{ row.barcode }}</span></td>
-              <td><span class="font-weight-bold text-grey-darken-4">{{ row.brgNama }}</span></td>
-              
+              <td class="tc text-grey-darken-1 font-weight-bold">
+                {{ idx + 1 }}
+              </td>
+              <td>
+                <span class="mono">{{ row.barcode }}</span>
+              </td>
+              <td>
+                <span class="font-weight-bold text-grey-darken-4">{{
+                  row.brgNama
+                }}</span>
+              </td>
+
               <!-- Qty Jumlah -->
               <td>
-                <input type="number" v-model.number="row.jumlah" class="cell-inp tr qty-inp" min="0" />
+                <input
+                  type="number"
+                  v-model.number="row.jumlah"
+                  class="cell-inp tr qty-inp"
+                  min="0"
+                />
               </td>
               <!-- Qty Koli -->
               <td>
-                <input type="number" v-model.number="row.koli" class="cell-inp tr qty-inp" min="0" />
+                <input
+                  type="number"
+                  v-model.number="row.koli"
+                  class="cell-inp tr qty-inp"
+                  min="0"
+                />
               </td>
               <!-- Keterangan Item -->
               <td>
-                <input type="text" v-model="row.keterangan" class="cell-inp" placeholder="Ket. item..." />
+                <input
+                  type="text"
+                  v-model="row.keterangan"
+                  class="cell-inp"
+                  placeholder="Ket. item..."
+                />
               </td>
               <!-- Hapus Baris -->
               <td class="tc">
-                <button class="btn-del" type="button" @click="removeRow(idx)" title="Hapus baris">
+                <button
+                  class="btn-del"
+                  type="button"
+                  @click="removeRow(idx)"
+                  title="Hapus baris"
+                >
                   <IconTrash :size="14" />
                 </button>
               </td>
@@ -338,8 +411,12 @@ const fmtQty = (v: number) =>
           <tfoot v-if="form.detail.length > 0">
             <tr class="tfoot-row">
               <td colspan="3" class="tr pr-2 text-caption text-grey">TOTAL</td>
-              <td class="tr font-weight-bold text-green-darken-4 pr-2">{{ fmtQty(totalJumlah) }}</td>
-              <td class="tr font-weight-bold text-green-darken-4 pr-2">{{ fmtQty(totalKoli) }}</td>
+              <td class="tr font-weight-bold text-green-darken-4 pr-2">
+                {{ fmtQty(totalJumlah) }}
+              </td>
+              <td class="tr font-weight-bold text-green-darken-4 pr-2">
+                {{ fmtQty(totalKoli) }}
+              </td>
               <td colspan="2"></td>
             </tr>
           </tfoot>
@@ -350,16 +427,32 @@ const fmtQty = (v: number) =>
     <!-- ── Dialog Simpan ───────────────────────────────────────────── -->
     <v-dialog v-model="showSaveDialog" max-width="340">
       <v-card rounded="lg">
-        <v-card-title class="text-subtitle-1 font-weight-bold pa-3 bg-blue-darken-3 text-white">
+        <v-card-title
+          class="text-subtitle-1 font-weight-bold pa-3 bg-blue-darken-3 text-white"
+        >
           Konfirmasi Simpan
         </v-card-title>
         <v-card-text class="pa-4 text-body-2">
-          Simpan data STBJ ke gudang <strong>{{ form.gdgNama }}</strong>?<br/>
-          <span class="text-caption text-grey">Total jumlah: {{ fmtQty(totalJumlah) }} | {{ form.detail.length }} item</span>
+          Simpan data STBJ ke gudang <strong>{{ form.gdgNama }}</strong
+          >?<br />
+          <span class="text-caption text-grey"
+            >Total jumlah: {{ fmtQty(totalJumlah) }} |
+            {{ form.detail.length }} item</span
+          >
         </v-card-text>
         <v-card-actions class="pa-2 bg-grey-lighten-4 justify-end">
-          <v-btn size="small" variant="outlined" @click="showSaveDialog = false">Batal</v-btn>
-          <v-btn size="small" color="primary" variant="flat" class="px-4" :loading="isSaving" @click="confirmSave">Ya, Simpan</v-btn>
+          <v-btn size="small" variant="outlined" @click="showSaveDialog = false"
+            >Batal</v-btn
+          >
+          <v-btn
+            size="small"
+            color="primary"
+            variant="flat"
+            class="px-4"
+            :loading="isSaving"
+            @click="confirmSave"
+            >Ya, Simpan</v-btn
+          >
         </v-card-actions>
       </v-card>
     </v-dialog>
@@ -367,15 +460,28 @@ const fmtQty = (v: number) =>
     <!-- ── Dialog Batal ────────────────────────────────────────────── -->
     <v-dialog v-model="showCancelDialog" max-width="320">
       <v-card rounded="lg">
-        <v-card-title class="text-subtitle-1 font-weight-bold pa-3 bg-red-darken-4 text-white">
+        <v-card-title
+          class="text-subtitle-1 font-weight-bold pa-3 bg-red-darken-4 text-white"
+        >
           Batalkan
         </v-card-title>
         <v-card-text class="pa-4 text-body-2">
           Keluar dari halaman ini? Perubahan yang belum disimpan akan hilang.
         </v-card-text>
         <v-card-actions class="pa-2 bg-grey-lighten-4 justify-end">
-          <v-btn size="small" variant="outlined" @click="showCancelDialog = false">Kembali</v-btn>
-          <v-btn size="small" color="error" variant="flat" @click="confirmCancel">Ya, Keluar</v-btn>
+          <v-btn
+            size="small"
+            variant="outlined"
+            @click="showCancelDialog = false"
+            >Kembali</v-btn
+          >
+          <v-btn
+            size="small"
+            color="error"
+            variant="flat"
+            @click="confirmCancel"
+            >Ya, Keluar</v-btn
+          >
         </v-card-actions>
       </v-card>
     </v-dialog>
@@ -424,84 +530,235 @@ const fmtQty = (v: number) =>
   align-items: start;
 }
 @media (max-width: 960px) {
-  .form-header-grid { grid-template-columns: 1fr; gap: 12px; }
+  .form-header-grid {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
 }
-.header-fields { display: flex; flex-direction: column; gap: 6px; }
+.header-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
 .grid-fields {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 8px 16px;
 }
-.full-col { grid-column: 1 / -1; }
-@media (max-width: 600px) { .grid-fields { grid-template-columns: 1fr; } }
-
-.f-row { display: flex; align-items: center; }
-.align-start { align-items: flex-start !important; }
-.f-lbl { width: 110px; font-size: 11px; font-weight: 600; color: #4b5563; flex-shrink: 0; }
-.f-inp, .f-txa {
-  flex: 1; height: 28px; border: 1px solid #d1d5db; border-radius: 4px;
-  padding: 0 8px; font-size: 11px; outline: none;
+.full-col {
+  grid-column: 1 / -1;
 }
-.f-txa { height: auto; padding: 4px 8px; }
-.f-inp:focus, .f-txa:focus { border-color: #1976d2; }
-.readonly-bg { background: #f3f4f6; color: #6b7280; }
+@media (max-width: 600px) {
+  .grid-fields {
+    grid-template-columns: 1fr;
+  }
+}
 
-.search-group { display: flex; flex: 1; gap: 4px; }
+.f-row {
+  display: flex;
+  align-items: center;
+}
+.align-start {
+  align-items: flex-start !important;
+}
+.f-lbl {
+  width: 110px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #4b5563;
+  flex-shrink: 0;
+}
+.f-inp,
+.f-txa {
+  flex: 1;
+  height: 28px;
+  border: 1px solid #d1d5db;
+  border-radius: 4px;
+  padding: 0 8px;
+  font-size: 11px;
+  outline: none;
+}
+.f-txa {
+  height: auto;
+  padding: 4px 8px;
+}
+.f-inp:focus,
+.f-txa:focus {
+  border-color: #1976d2;
+}
+.readonly-bg {
+  background: #f3f4f6;
+  color: #6b7280;
+}
+
+.search-group {
+  display: flex;
+  flex: 1;
+  gap: 4px;
+}
 .btn-srch {
-  height: 28px; width: 32px; color: white; border: none;
-  border-radius: 4px; display: flex; align-items: center;
-  justify-content: center; cursor: pointer; flex-shrink: 0;
+  height: 28px;
+  width: 32px;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  flex-shrink: 0;
 }
-.btn-blue { background: #2e2e7d; }
+.btn-blue {
+  background: #3B5998;
+}
 
 /* Summary */
 .header-summary {
-  background: #f9fafb; border: 1px solid #e5e7eb;
-  border-radius: 6px; padding: 12px;
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  padding: 12px;
 }
 .summary-box {
-  background: #2e2e7d; color: white;
-  padding: 12px; border-radius: 4px; text-align: right;
+  background: #3B5998;
+  color: white;
+  padding: 12px;
+  border-radius: 4px;
+  text-align: right;
 }
-.summary-lbl { font-size: 10px; font-weight: 600; opacity: 0.85; }
-.summary-val { font-size: 26px; font-weight: 800; font-variant-numeric: tabular-nums; }
-.summary-sub { font-size: 10px; opacity: 0.75; margin-top: 2px; }
+.summary-lbl {
+  font-size: 10px;
+  font-weight: 600;
+  opacity: 0.85;
+}
+.summary-val {
+  font-size: 26px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+.summary-sub {
+  font-size: 10px;
+  opacity: 0.75;
+  margin-top: 2px;
+}
 
 /* Table */
-.section-title { font-size: 11px; font-weight: 700; color: #2e2e7d; text-transform: uppercase; }
-.tbl-wrap { border: 1px solid #e0e0e0; border-radius: 4px; overflow: auto; }
-.dtl-tbl { width: 100%; border-collapse: collapse; font-size: 11px; }
-.dtl-tbl thead tr { background: #2e2e7d; }
-.dtl-tbl th { color: white; font-weight: 700; padding: 6px; white-space: nowrap; }
-.th-terima { background: #1b1b5e !important; }
-.dtl-tbl td { padding: 3px 4px; border-bottom: 1px solid #f0f0f0; vertical-align: middle; }
-.dtl-tbl tbody tr:hover td { background: rgba(21,101,192,0.03); }
-.dtl-tbl tfoot .tfoot-row td { background: #f5f5f5; border-top: 2px solid #e0e0e0; padding: 5px 4px; }
-
-.mono { font-family: monospace; font-size: 10px; color: #6b7280; }
-.cell-inp {
-  width: 100%; height: 24px; border: 1px solid #d1d5db;
-  border-radius: 3px; padding: 0 4px; font-size: 11px; outline: none;
+.section-title {
+  font-size: 11px;
+  font-weight: 700;
+  color: #3B5998;
+  text-transform: uppercase;
 }
-.cell-inp:focus { border-color:#2e2e7d; }
-.qty-inp { background: #e8e8f5; border-color: #a5a5d6; font-weight: 700; color: #1b1b5e; }
+.tbl-wrap {
+  border: 1px solid #e0e0e0;
+  border-radius: 4px;
+  overflow: auto;
+}
+.dtl-tbl {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 11px;
+}
+.dtl-tbl thead tr {
+  background: #3B5998;
+}
+.dtl-tbl th {
+  color: white;
+  font-weight: 700;
+  padding: 6px;
+  white-space: nowrap;
+}
+.th-terima {
+  background: #3B5998 !important;
+}
+.dtl-tbl td {
+  padding: 3px 4px;
+  border-bottom: 1px solid #f0f0f0;
+  vertical-align: middle;
+}
+.dtl-tbl tbody tr:hover td {
+  background: rgba(21, 101, 192, 0.03);
+}
+.dtl-tbl tfoot .tfoot-row td {
+  background: #f5f5f5;
+  border-top: 2px solid #e0e0e0;
+  padding: 5px 4px;
+}
+
+.mono {
+  font-family: monospace;
+  font-size: 10px;
+  color: #6b7280;
+}
+.cell-inp {
+  width: 100%;
+  height: 24px;
+  border: 1px solid #d1d5db;
+  border-radius: 3px;
+  padding: 0 4px;
+  font-size: 11px;
+  outline: none;
+}
+.cell-inp:focus {
+  border-color: #3B5998;
+}
+.qty-inp {
+  background: #e8e8f5;
+  border-color: #a5a5d6;
+  font-weight: 700;
+  color: #3B5998;
+}
 
 .btn-del {
-  background: none; border: none; color: #ef5350; cursor: pointer;
-  display: flex; align-items: center; justify-content: center; width: 24px; height: 24px; border-radius: 4px;
+  background: none;
+  border: none;
+  color: #ef5350;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 4px;
 }
-.btn-del:hover { background: #ffebee; }
+.btn-del:hover {
+  background: #ffebee;
+}
 
-.flex { display: flex; }
-.justify-between { justify-content: space-between; }
-.align-center { align-items: center; }
-.tc { text-align: center; }
-.tr { text-align: right; }
-.pr-2 { padding-right: 8px; }
-.mt-1 { margin-top: 4px; }
-.mt-4 { margin-top: 16px; }
-.mb-2 { margin-bottom: 8px; }
-.italic { font-style: italic; }
-.pa-4 { padding: 16px; }
-.pa-6 { padding: 24px; }
+.flex {
+  display: flex;
+}
+.justify-between {
+  justify-content: space-between;
+}
+.align-center {
+  align-items: center;
+}
+.tc {
+  text-align: center;
+}
+.tr {
+  text-align: right;
+}
+.pr-2 {
+  padding-right: 8px;
+}
+.mt-1 {
+  margin-top: 4px;
+}
+.mt-4 {
+  margin-top: 16px;
+}
+.mb-2 {
+  margin-bottom: 8px;
+}
+.italic {
+  font-style: italic;
+}
+.pa-4 {
+  padding: 16px;
+}
+.pa-6 {
+  padding: 24px;
+}
 </style>

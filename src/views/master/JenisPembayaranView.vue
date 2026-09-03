@@ -95,9 +95,9 @@ const handleDelete = async (item: JenisPembayaran) => {
     <v-card rounded="lg">
       <v-card-title
         class="d-flex align-center gap-2 pa-4 pb-2"
-        style="font-size: 14px; font-weight: 700; border-top: 3px solid #2e2e7d"
+        style="font-size: 14px; font-weight: 700; border-top: 3px solid #3B5998"
       >
-        <IconList :size="18" :stroke-width="1.8" color="#2e2e7d" />
+        <IconList :size="18" :stroke-width="1.8" color="#3B5998" />
         Tambah Jenis Pembayaran
       </v-card-title>
 

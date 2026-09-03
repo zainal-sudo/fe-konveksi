@@ -180,7 +180,7 @@ const handleDelete = async (item: Kelompok) => {
   <!-- ── Dialog Form ── -->
   <v-dialog v-model="dialog" max-width="500" persistent>
     <v-card rounded="lg">
-      <v-card-title class="d-flex align-center gap-2 pa-3" style="background:#2e2e7d; color:white;">
+      <v-card-title class="d-flex align-center gap-2 pa-3" style="background:#3B5998; color:white;">
         <IconList :size="20" /> {{ dialogTitle }}
       </v-card-title>
 
@@ -275,7 +275,7 @@ const handleDelete = async (item: Kelompok) => {
   outline: none;
   background: white;
 }
-.f-inp-native:focus { border-color: #2e2e7d; }
+.f-inp-native:focus { border-color: #3B5998; }
 .select-native { cursor: pointer; }
 .f-inp-native:disabled { background-color: #f3f4f6; color: #6b7280; }
 .f-err { border-color: #ef4444 !important; }

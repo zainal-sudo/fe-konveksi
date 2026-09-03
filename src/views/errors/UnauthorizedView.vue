@@ -22,7 +22,7 @@
 .err-code {
   font-size: 72px;
   font-weight: 800;
-  color: #2e2e7d;
+  color: #3B5998;
   line-height: 1;
 }
 .err-title {
@@ -37,7 +37,7 @@
 .err-btn {
   margin-top: 12px;
   padding: 10px 24px;
-  background: #2e2e7d;
+  background: #3B5998;
   color: white;
   border: none;
   border-radius: 8px;
@@ -46,6 +46,6 @@
   cursor: pointer;
 }
 .err-btn:hover {
-  background: #1b1b5e;
+  background: #3B5998;
 }
 </style>

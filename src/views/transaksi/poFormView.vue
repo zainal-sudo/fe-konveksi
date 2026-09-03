@@ -715,7 +715,7 @@ const fmtNumber = (v: number) => new Intl.NumberFormat("id-ID").format(v || 0);
 }
 .f-inp-native:focus,
 .f-txa-native:focus {
-  border-color: #2e2e7d;
+  border-color: #3B5998;
 }
 .readonly-bg {
   background-color: #f3f4f6;
@@ -731,7 +731,7 @@ const fmtNumber = (v: number) => new Intl.NumberFormat("id-ID").format(v || 0);
 .btn-search {
   height: 28px;
   width: 32px;
-  background: #2e2e7d;
+  background: #3B5998;
   color: white;
   border: none;
   border-radius: 4px;
@@ -795,7 +795,7 @@ const fmtNumber = (v: number) => new Intl.NumberFormat("id-ID").format(v || 0);
   padding: 10px;
 }
 .summary-box {
-  background: #2e2e7d;
+  background: #3B5998;
   color: white;
   padding: 10px;
   border-radius: 4px;
@@ -863,7 +863,7 @@ const fmtNumber = (v: number) => new Intl.NumberFormat("id-ID").format(v || 0);
 .section-title {
   font-size: 11px;
   font-weight: 700;
-  color: #2e2e7d;
+  color: #3B5998;
   text-transform: uppercase;
 }
 .detail-table-wrap {
@@ -878,7 +878,7 @@ const fmtNumber = (v: number) => new Intl.NumberFormat("id-ID").format(v || 0);
   font-size: 11px;
 }
 .detail-table thead tr {
-  background: #2e2e7d;
+  background: #3B5998;
 }
 .detail-table th {
   color: white;
@@ -905,7 +905,7 @@ const fmtNumber = (v: number) => new Intl.NumberFormat("id-ID").format(v || 0);
   outline: none;
 }
 .cell-inp:focus {
-  border-color: #2e2e7d;
+  border-color: #3B5998;
 }
 
 .cell-search-group {
@@ -916,7 +916,7 @@ const fmtNumber = (v: number) => new Intl.NumberFormat("id-ID").format(v || 0);
 .cell-btn-search {
   height: 24px;
   width: 24px;
-  background: #2e2e7d;
+  background: #3B5998;
   color: white;
   border: none;
   border-radius: 3px;
@@ -974,7 +974,7 @@ const fmtNumber = (v: number) => new Intl.NumberFormat("id-ID").format(v || 0);
   background: white;
 }
 .cell-currency-wrap:focus-within {
-  border-color: #2e2e7d;
+  border-color: #3B5998;
 }
 .cell-currency-prefix {
   flex-shrink: 0;

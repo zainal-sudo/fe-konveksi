@@ -170,7 +170,7 @@ const doExport = () => exportMasterUser(items.value ?? []);
 }
 .aktif-ya {
   background: #e8e8f5;
-  color: #2e2e7d;
+  color: #3B5998;
 }
 .aktif-tidak {
   background: #fbe9e7;

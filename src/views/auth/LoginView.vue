@@ -53,7 +53,7 @@ const handleLogin = async () => {
       const isChunkError =
         err?.name === "ChunkLoadError" ||
         /Failed to fetch dynamically imported module|Importing a module script failed|error loading dynamically imported module/i.test(
-          err?.message ?? "",
+          err?.message ?? ""
         );
 
       if (isChunkError) {
@@ -283,7 +283,7 @@ const onUsernameEnter = () => {
 .login-left {
   width: 320px;
   flex-shrink: 0;
-  background: linear-gradient(160deg, #1b1b5e, #2e2e7d 60%, #38388e);
+  background: linear-gradient(160deg, #3B5998, #3B5998 60%, #38388e);
   padding: 40px 32px;
   display: flex;
   flex-direction: column;
@@ -402,7 +402,7 @@ const onUsernameEnter = () => {
   box-sizing: border-box;
 }
 .field-input:focus {
-  border-color: #2e2e7d;
+  border-color: #3B5998;
   box-shadow: 0 0 0 3px rgba(46, 46, 125, 0.12);
   background: white;
 }
@@ -431,14 +431,14 @@ const onUsernameEnter = () => {
   padding: 4px;
 }
 .pass-toggle:hover {
-  color: #2e2e7d;
+  color: #3B5998;
 }
 
 /* Login button */
 .btn-login {
   height: 42px;
   border-radius: 10px;
-  background: #2e2e7d;
+  background: #3B5998;
   color: white;
   border: none;
   cursor: pointer;
@@ -453,7 +453,7 @@ const onUsernameEnter = () => {
   box-shadow: 0 4px 12px rgba(46, 46, 125, 0.3);
 }
 .btn-login:hover:not(:disabled) {
-  background: #1b1b5e;
+  background: #3B5998;
   box-shadow: 0 6px 16px rgba(46, 46, 125, 0.4);
 }
 .btn-login:active:not(:disabled) {

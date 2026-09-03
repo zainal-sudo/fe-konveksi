@@ -47,7 +47,7 @@ watch([startDate, endDate], ([s, e]) => {
   try {
     sessionStorage.setItem(
       STORAGE_KEY,
-      JSON.stringify({ startDate: s, endDate: e }),
+      JSON.stringify({ startDate: s, endDate: e })
     );
   } catch {
     /* silent */
@@ -358,7 +358,7 @@ const fmtDate = (v: string) => {
   width: 130px; /* 👈 Lebar disamakan */
 }
 .date-inp:focus {
-  border-color: #2e2e7d;
+  border-color: #3B5998;
 }
 
 .tc {
@@ -383,7 +383,7 @@ const fmtDate = (v: string) => {
 }
 .badge-open {
   background: #e8e8f5;
-  color: #2e2e7d;
+  color: #3B5998;
   padding: 1px 8px;
   border-radius: 10px;
   font-size: 10px;
@@ -399,7 +399,7 @@ const fmtDate = (v: string) => {
   font-size: 11px;
 }
 .detail-tbl thead tr {
-  background: #1b1b5e;
+  background: #3B5998;
 }
 .detail-tbl th {
   color: white;

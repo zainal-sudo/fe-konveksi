@@ -69,7 +69,7 @@ watch(
       /* silent */
     }
   },
-  { deep: true },
+  { deep: true }
 );
 
 const filterValues = computed(() => ({ ...filterState.value }));
@@ -113,11 +113,11 @@ const loadData = async () => {
     const [master, detail] = await Promise.all([
       pembayaranCustomerApi.getBrowse(
         filterState.value.startDate,
-        filterState.value.endDate,
+        filterState.value.endDate
       ),
       pembayaranCustomerApi.getBrowseDetail(
         filterState.value.startDate,
-        filterState.value.endDate,
+        filterState.value.endDate
       ),
     ]);
     items.value = master;
@@ -179,13 +179,13 @@ const doExport = () =>
   exportPembayaranCustomer(
     items.value,
     filterState.value.startDate,
-    filterState.value.endDate,
+    filterState.value.endDate
   );
 const doExportDetail = () =>
   exportPembayaranCustomerDetail(
     detailItems.value,
     filterState.value.startDate,
-    filterState.value.endDate,
+    filterState.value.endDate
   );
 
 // ── Row props — merah jika Closed=Belum ───────────────────────────────
@@ -312,8 +312,8 @@ const fmtDate = (v: string) => {
                   fmt(
                     getDetail(item.Nomor).reduce(
                       (s, d) => s + Number(d.Nominal),
-                      0,
-                    ),
+                      0
+                    )
                   )
                 }}
               </td>
@@ -378,7 +378,7 @@ const fmtDate = (v: string) => {
   width: 130px;
 }
 .date-inp:focus {
-  border-color: #2e2e7d;
+  border-color: #3B5998;
 }
 .detail-wrap {
   padding: 4px 0;
@@ -389,7 +389,7 @@ const fmtDate = (v: string) => {
   font-size: 11px;
 }
 .detail-tbl thead tr {
-  background: #1b1b5e;
+  background: #3B5998;
 }
 .detail-tbl th {
   color: white;
@@ -407,7 +407,7 @@ const fmtDate = (v: string) => {
 }
 .detail-foot td {
   background: #f0f0fd;
-  border-top: 2px solid #2e2e7d;
+  border-top: 2px solid #3B5998;
   padding: 4px 6px;
 }
 .detail-foot-lbl {
@@ -418,7 +418,7 @@ const fmtDate = (v: string) => {
 .detail-foot-val {
   font-size: 11px;
   font-weight: 700;
-  color: #1b1b5e;
+  color: #3B5998;
   font-variant-numeric: tabular-nums;
 }
 .tc {

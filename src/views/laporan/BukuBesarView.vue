@@ -372,7 +372,7 @@ const doExport = () =>
     <v-card rounded="lg">
       <v-card-title
         class="pa-4 pb-2"
-        style="font-size: 13px; font-weight: 700; border-top: 3px solid #2e2e7d"
+        style="font-size: 13px; font-weight: 700; border-top: 3px solid #3B5998"
       >
         Pilih Account
       </v-card-title>
@@ -476,7 +476,7 @@ const doExport = () =>
   width: 130px;
 }
 .date-inp:focus {
-  border-color: #2e2e7d;
+  border-color: #3B5998;
 }
 .kode-inp {
   height: 32px;
@@ -489,7 +489,7 @@ const doExport = () =>
   font-family: monospace;
 }
 .kode-inp:focus {
-  border-color: #2e2e7d;
+  border-color: #3B5998;
 }
 .nama-inp {
   height: 32px;
@@ -526,7 +526,7 @@ const doExport = () =>
   box-sizing: border-box;
 }
 .modal-search-inp:focus {
-  border-color: #2e2e7d;
+  border-color: #3B5998;
 }
 .modal-loading {
   display: flex;
@@ -554,7 +554,7 @@ const doExport = () =>
   font-family: monospace;
   font-size: 11px;
   font-weight: 700;
-  color: #2e2e7d;
+  color: #3B5998;
   min-width: 80px;
 }
 .modal-nama {
@@ -583,12 +583,12 @@ const doExport = () =>
   box-sizing: border-box;
 }
 .modal-search-inp:focus {
-  border-color: #2e2e7d;
+  border-color: #3B5998;
 }
 .modal-total-badge {
   font-size: 11px;
   font-weight: 600;
-  color: #2e2e7d;
+  color: #3B5998;
   background: #f0f0fd;
   border: 1px solid #c8c8e6;
   border-radius: 20px;

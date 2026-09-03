@@ -47,7 +47,7 @@ watch([startDate, endDate], ([s, e]) => {
   try {
     sessionStorage.setItem(
       STORAGE_KEY,
-      JSON.stringify({ startDate: s, endDate: e }),
+      JSON.stringify({ startDate: s, endDate: e })
     );
   } catch {
     /* silent */
@@ -124,7 +124,7 @@ const getDetail = (nomor: string) =>
 
 // ── Summary ───────────────────────────────────────────────────────────
 const totalAll = computed(() =>
-  items.value.reduce((s, r) => s + Number(r.Total || 0), 0),
+  items.value.reduce((s, r) => s + Number(r.Total || 0), 0)
 );
 
 // ── Export ────────────────────────────────────────────────────────────
@@ -141,7 +141,7 @@ const doExportDetail = () => {
     items.value,
     detailItems.value,
     startDate.value,
-    endDate.value,
+    endDate.value
   );
 };
 
@@ -232,7 +232,7 @@ const rowPropsFn = (data: any) => {
       </span>
     </template>
     <template #item.Bayar="{ value }">
-      <span style="font-variant-numeric: tabular-nums; color: #2e2e7d">
+      <span style="font-variant-numeric: tabular-nums; color: #3B5998">
         {{ fmt(Number(value)) }}
       </span>
     </template>
@@ -286,8 +286,8 @@ const rowPropsFn = (data: any) => {
                   fmt(
                     getDetail(item.Nomor).reduce(
                       (s, d) => s + Number(d.Total),
-                      0,
-                    ),
+                      0
+                    )
                   )
                 }}
               </td>
@@ -326,7 +326,7 @@ const rowPropsFn = (data: any) => {
   width: 130px;
 }
 .date-inp:focus {
-  border-color: #2e2e7d;
+  border-color: #3B5998;
 }
 
 .det-wrap {
@@ -337,7 +337,7 @@ const rowPropsFn = (data: any) => {
   font-size: 11px;
 }
 .det-tbl thead tr {
-  background: #1b1b5e;
+  background: #3B5998;
 }
 .det-tbl th {
   color: white;
@@ -360,7 +360,7 @@ const rowPropsFn = (data: any) => {
 
 .det-foot td {
   background: #f0f0fd;
-  border-top: 2px solid #2e2e7d;
+  border-top: 2px solid #3B5998;
   padding: 4px 8px;
 }
 .det-foot-lbl {
@@ -371,7 +371,7 @@ const rowPropsFn = (data: any) => {
 .det-foot-val {
   font-size: 11px;
   font-weight: 700;
-  color: #1b1b5e;
+  color: #3B5998;
   font-variant-numeric: tabular-nums;
 }
 

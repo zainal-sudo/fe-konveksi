@@ -236,7 +236,7 @@ const emit = defineEmits([
   box-shadow: 0 1px 4px rgba(46, 46, 125, 0.08) !important;
 }
 :deep(.header-section) {
-  border-top: 3px solid #2e2e7d !important;
+  border-top: 3px solid #3B5998 !important;
 }
 
 .form-left-col {

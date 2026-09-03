@@ -194,7 +194,7 @@ const fmt = (v: number) => new Intl.NumberFormat("id-ID").format(v || 0);
       <span
         :style="{
           background: item.status === 'Aktif' ? '#e8e8f5' : '#ffebee',
-          color: item.status === 'Aktif' ? '#2e2e7d' : '#c62828',
+          color: item.status === 'Aktif' ? '#3B5998' : '#c62828',
           padding: '1px 8px',
           borderRadius: '3px',
           fontSize: '11px',
@@ -210,9 +210,9 @@ const fmt = (v: number) => new Intl.NumberFormat("id-ID").format(v || 0);
     <v-card rounded="lg">
       <v-card-title
         class="d-flex align-center gap-2 pa-4 pb-2"
-        style="font-size: 14px; font-weight: 700; border-top: 3px solid #2e2e7d"
+        style="font-size: 14px; font-weight: 700; border-top: 3px solid #3B5998"
       >
-        <IconBuildingBank :size="18" :stroke-width="1.8" color="#2e2e7d" />
+        <IconBuildingBank :size="18" :stroke-width="1.8" color="#3B5998" />
         {{ dialogTitle }}
       </v-card-title>
 

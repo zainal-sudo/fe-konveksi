@@ -200,9 +200,9 @@ const fmt = (v: number) => new Intl.NumberFormat("id-ID").format(v || 0);
 .filter-lbl { font-size: 12px; font-weight: 600; color: #374151; white-space: nowrap; }
 .filter-sep { font-size: 12px; color: #9ca3af; white-space: nowrap; }
 .date-inp { height: 32px; border: 1px solid #d1d5db; border-radius: 6px; padding: 0 8px; font-size: 12px; outline: none; width: 130px; }
-.date-inp:focus { border-color: #2e2e7d; }
+.date-inp:focus { border-color: #3B5998; }
 .tc { text-align: center; }
 .tr { text-align: right; font-variant-numeric: tabular-nums; }
 .badge-closed { background: #e0e0e0; color: #616161; padding: 1px 8px; border-radius: 10px; font-size: 10px; font-weight: 700; }
-.badge-open { background: #e8e8f5; color: #2e2e7d; padding: 1px 8px; border-radius: 10px; font-size: 10px; font-weight: 700; }
+.badge-open { background: #e8e8f5; color: #3B5998; padding: 1px 8px; border-radius: 10px; font-size: 10px; font-weight: 700; }
 </style>

@@ -122,7 +122,7 @@ const togglePerm = (menuId: number, field: keyof UserMenuPermission) => {
 
 const toggleGroupAll = (
   group: (typeof menuGroups.value)[0],
-  checked: boolean,
+  checked: boolean
 ) => {
   const val = checked ? "Y" : "N";
   for (const m of group.menus) {
@@ -212,7 +212,7 @@ onMounted(async () => {
 
     if (isEdit.value) {
       const d = await masterUserFormApi.getDetail(
-        decodeURIComponent(route.params.kode as string),
+        decodeURIComponent(route.params.kode as string)
       );
       form.value = {
         kode: d.kode,
@@ -263,7 +263,7 @@ const confirmSave = async () => {
     showSaveDialog.value = false;
 
     // AMBIL TAB SAAT INI DAN PAKSA JADIKAN CLOSABLE = TRUE
-    const currentTab = tabsStore.tabs.find(t => t.id === route.path);
+    const currentTab = tabsStore.tabs.find((t) => t.id === route.path);
     if (currentTab) {
       currentTab.closable = true; // Paksa izinkan tutup
     }
@@ -359,16 +359,16 @@ const confirmClose = () => {
           </div>
 
           <!-- Cabang -->
-			<div class="field-row">
-			  <label class="field-lbl">Cabang</label>
-			  <div class="select-wrap">
-				<select v-model="form.cabang" class="form-select">
-				  <option v-for="c in cabangList" :key="c" :value="c">
-					{{ c }}
-				  </option>
-				</select>
-			  </div>
-			</div>
+          <div class="field-row">
+            <label class="field-lbl">Cabang</label>
+            <div class="select-wrap">
+              <select v-model="form.cabang" class="form-select">
+                <option v-for="c in cabangList" :key="c" :value="c">
+                  {{ c }}
+                </option>
+              </select>
+            </div>
+          </div>
 
           <div class="check-row">
             <label class="check-item">
@@ -453,7 +453,7 @@ const confirmClose = () => {
                   @change="
                     toggleGroupAll(
                       group,
-                      ($event.target as HTMLInputElement).checked,
+                      ($event.target as HTMLInputElement).checked
                     )
                   "
                 />
@@ -522,13 +522,13 @@ const confirmClose = () => {
   background: white;
   border: 1px solid #c8c8e6;
   border-radius: 8px;
-  border-top: 3px solid #2e2e7d;
+  border-top: 3px solid #3B5998;
   padding: 12px 14px;
 }
 .form-section-title {
   font-size: 10px;
   font-weight: 700;
-  color: #2e2e7d;
+  color: #3B5998;
   text-transform: uppercase;
   letter-spacing: 0.06em;
   margin-bottom: 10px;
@@ -567,7 +567,7 @@ const confirmClose = () => {
   transition: border-color 0.15s;
 }
 .form-inp:focus {
-  border-color: #2e2e7d;
+  border-color: #3B5998;
   box-shadow: 0 0 0 2px rgba(46, 46, 125, 0.1);
 }
 .form-inp:read-only {
@@ -597,7 +597,7 @@ select.form-inp {
   cursor: pointer;
 }
 .check-item input {
-  accent-color: #2e2e7d;
+  accent-color: #3B5998;
   width: 14px;
   height: 14px;
   cursor: pointer;
@@ -627,7 +627,7 @@ select.form-inp {
   background-position: right 10px center;
 }
 .form-select:focus {
-  border-color: #2e2e7d;
+  border-color: #3B5998;
   box-shadow: 0 0 0 2px rgba(46, 46, 125, 0.1);
 }
 
@@ -651,7 +651,7 @@ select.form-inp {
   opacity: 0.85;
 }
 .preset-btn.green {
-  background: #2e2e7d;
+  background: #3B5998;
   color: white;
 }
 .preset-btn.blue {
@@ -671,7 +671,7 @@ select.form-inp {
 }
 .perm-count {
   font-weight: 700;
-  color: #2e2e7d;
+  color: #3B5998;
   font-size: 14px;
 }
 .perm-total {
@@ -686,7 +686,7 @@ select.form-inp {
   background: white;
   border: 1px solid #c8c8e6;
   border-radius: 8px;
-  border-top: 3px solid #2e2e7d;
+  border-top: 3px solid #3B5998;
   overflow: hidden;
 }
 .right-col-wrap > .form-section-title {
@@ -712,7 +712,7 @@ select.form-inp {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  background: #1b1b5e;
+  background: #3B5998;
   border-radius: 5px;
   padding: 6px 10px;
   margin-bottom: 2px;
@@ -773,7 +773,7 @@ select.form-inp {
 .perm-id {
   font-size: 10px;
   font-weight: 700;
-  color: #2e2e7d;
+  color: #3B5998;
   background: #e8e8f5;
   border-radius: 3px;
   padding: 1px 5px;
@@ -800,6 +800,6 @@ select.form-inp {
   width: 15px;
   height: 15px;
   cursor: pointer;
-  accent-color: #2e2e7d;
+  accent-color: #3B5998;
 }
 </style>

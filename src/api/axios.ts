@@ -3,7 +3,7 @@ import axios from "axios";
 let isExpiredHandled = false; // cegah double dispatch
 
 const api = axios.create({
-  baseURL: "http://103.150.117.18:3199/api",
+  baseURL: "http://103.175.221.20:3199/api",
   timeout: 30000,
   headers: { "Content-Type": "application/json" },
 });

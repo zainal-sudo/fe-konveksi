@@ -138,7 +138,7 @@ const reloadPage = () => {
   height: 28px;
   border-radius: 6px;
   background: rgba(46, 46, 125, 0.1);
-  color: #2e2e7d;
+  color: #3B5998;
   flex-shrink: 0;
 }
 .page-title {
@@ -168,7 +168,7 @@ const reloadPage = () => {
   border: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
   border-radius: 6px;
   overflow: hidden;
-  border-top: 3px solid #2e2e7d;
+  border-top: 3px solid #3B5998;
 }
 .content-wrapper {
   flex: 1 1 auto;

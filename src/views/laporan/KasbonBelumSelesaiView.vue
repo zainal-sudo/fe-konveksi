@@ -65,7 +65,7 @@ watch(
       /* silent */
     }
   },
-  { deep: true },
+  { deep: true }
 );
 
 // filterValues → BaseBrowse watch → emit refresh → loadData
@@ -90,7 +90,7 @@ const modalPaged = computed(() => {
   const filtered = q
     ? modalItems.value.filter(
         (a) =>
-          a.kode.toLowerCase().includes(q) || a.nama.toLowerCase().includes(q),
+          a.kode.toLowerCase().includes(q) || a.nama.toLowerCase().includes(q)
       )
     : modalItems.value;
   return filtered.slice(0, modalPage.value * MODAL_PAGE_SIZE);
@@ -130,7 +130,7 @@ const onRekkodeBlur = async () => {
   if (!filterState.value.rekkode) return;
   try {
     const acc = await kasbonBelumSelesaiApi.getAccountByKode(
-      filterState.value.rekkode,
+      filterState.value.rekkode
     );
     filterState.value = { ...filterState.value, reknama: acc.nama };
   } catch {
@@ -197,7 +197,7 @@ const rowPropsFn = (_data: any) => ({});
 
 // ── Summary ───────────────────────────────────────────────────────────
 const totalNominal = computed(() =>
-  items.value.reduce((s, r) => s + Number(r.Nominal), 0),
+  items.value.reduce((s, r) => s + Number(r.Nominal), 0)
 );
 
 const fmt = (v: number) => new Intl.NumberFormat("id-ID").format(v || 0);
@@ -213,13 +213,13 @@ const doExport = () =>
   exportKasbonBelumSelesai(
     items.value,
     filterState.value.rekkode,
-    filterState.value.reknama,
+    filterState.value.reknama
   );
 const doExportDetail = () =>
   exportKasbonBelumSelesaiDetail(
     detailItems.value,
     filterState.value.rekkode,
-    filterState.value.reknama,
+    filterState.value.reknama
   );
 </script>
 
@@ -339,8 +339,8 @@ const doExportDetail = () =>
                   fmt(
                     getDetail(item.Nomor).reduce(
                       (s, d) => s + Number(d.Nominal),
-                      0,
-                    ),
+                      0
+                    )
                   )
                 }}
               </td>
@@ -349,8 +349,8 @@ const doExportDetail = () =>
                   fmt(
                     getDetail(item.Nomor).reduce(
                       (s, d) => s + Number(d.Total),
-                      0,
-                    ),
+                      0
+                    )
                   )
                 }}
               </td>
@@ -373,7 +373,7 @@ const doExportDetail = () =>
     <v-card rounded="lg">
       <v-card-title
         class="text-body-1 font-weight-bold pa-4 pb-2"
-        style="border-top: 3px solid #2e2e7d"
+        style="border-top: 3px solid #3B5998"
       >
         Pilih Account
       </v-card-title>
@@ -438,7 +438,7 @@ const doExportDetail = () =>
   font-family: monospace;
 }
 .kode-inp:focus {
-  border-color: #2e2e7d;
+  border-color: #3B5998;
 }
 .nama-inp {
   height: 32px;
@@ -468,7 +468,7 @@ const doExportDetail = () =>
   font-size: 11px;
 }
 .detail-tbl thead tr {
-  background: #1b1b5e;
+  background: #3B5998;
 }
 .detail-tbl th {
   color: white;
@@ -486,7 +486,7 @@ const doExportDetail = () =>
 }
 .detail-foot td {
   background: #f0f0fd;
-  border-top: 2px solid #2e2e7d;
+  border-top: 2px solid #3B5998;
   padding: 4px 6px;
 }
 .detail-foot-lbl {
@@ -497,12 +497,12 @@ const doExportDetail = () =>
 .detail-foot-val {
   font-size: 11px;
   font-weight: 700;
-  color: #1b1b5e;
+  color: #3B5998;
   font-variant-numeric: tabular-nums;
 }
 .ket-badge {
   background: rgba(46, 46, 125, 0.1);
-  color: #2e2e7d;
+  color: #3B5998;
   border-radius: 3px;
   padding: 1px 5px;
   font-size: 10px;
@@ -532,7 +532,7 @@ const doExportDetail = () =>
   box-sizing: border-box;
 }
 .modal-search-inp:focus {
-  border-color: #2e2e7d;
+  border-color: #3B5998;
 }
 .modal-loading {
   display: flex;
@@ -560,7 +560,7 @@ const doExportDetail = () =>
   font-family: monospace;
   font-size: 11px;
   font-weight: 700;
-  color: #2e2e7d;
+  color: #3B5998;
   min-width: 80px;
 }
 .modal-nama {

@@ -23,7 +23,7 @@ const MENU_ID = "31";
 const isEditMode = computed(() => !!route.params.nomor);
 
 const formJenis = ref(
-  typeof route.query.jenis === "string" ? route.query.jenis : "ACCESORIES",
+  typeof route.query.jenis === "string" ? route.query.jenis : "ACCESORIES"
 );
 
 const toLocalDate = (d: Date) => {
@@ -91,7 +91,7 @@ const {
   fetchApi: isEditMode.value
     ? async () => {
         const d = await mutasiOutFormApi.getDetail(
-          route.params.nomor as string,
+          route.params.nomor as string
         );
         formJenis.value = d.Jenis;
         return {
@@ -230,7 +230,7 @@ const setPermintaan = async (noPermintaan: string) => {
     let targetIdx = activeGridIndex.value;
     for (const dtl of details) {
       const isDup = detail.value.some(
-        (d) => d.NoPermintaan === dtl.NoPermintaan && d.Kode === dtl.Kode,
+        (d) => d.NoPermintaan === dtl.NoPermintaan && d.Kode === dtl.Kode
       );
       if (isDup) continue;
 
@@ -294,7 +294,7 @@ const validateSave = () => {
 const onPrintConfirm = () => {
   window.open(
     `/transaksi/mutasi-out/print/${encodeURIComponent(nomorToPrint.value)}`,
-    "_blank",
+    "_blank"
   );
   showPrintDialog.value = false;
   router.push({ name: "MutasiOut" });
@@ -580,7 +580,7 @@ const CABANG_LIST = ["P01", "P02", "P03", "P04", "P05", "HO-"];
     <v-card rounded="lg">
       <v-card-title
         class="pa-3 pb-2"
-        style="font-size: 13px; font-weight: 700; border-top: 3px solid #2e2e7d"
+        style="font-size: 13px; font-weight: 700; border-top: 3px solid #3B5998"
       >
         Cari Barang — {{ formJenis }}
       </v-card-title>
@@ -633,7 +633,7 @@ const CABANG_LIST = ["P01", "P02", "P03", "P04", "P05", "HO-"];
     <v-card rounded="lg">
       <v-card-title
         class="pa-3 pb-2"
-        style="font-size: 13px; font-weight: 700; border-top: 3px solid #2e2e7d"
+        style="font-size: 13px; font-weight: 700; border-top: 3px solid #3B5998"
       >
         Cari No. Permintaan — {{ formJenis }}
       </v-card-title>
@@ -723,12 +723,12 @@ const CABANG_LIST = ["P01", "P02", "P03", "P04", "P05", "HO-"];
     <v-card rounded="lg">
       <v-card-title
         class="pa-3"
-        style="font-size: 13px; font-weight: 700; border-top: 3px solid #2e2e7d"
+        style="font-size: 13px; font-weight: 700; border-top: 3px solid #3B5998"
       >
         Simpan Berhasil
       </v-card-title>
       <v-card-text class="pa-3 pt-1" style="font-size: 12px">
-        Mutasi <strong style="color: #2e2e7d">{{ nomorToPrint }}</strong>
+        Mutasi <strong style="color: #3B5998">{{ nomorToPrint }}</strong>
         berhasil disimpan. Cetak sekarang?
       </v-card-text>
       <v-card-actions class="pa-3" style="border-top: 1px solid #e0e0e0">
@@ -777,7 +777,7 @@ const CABANG_LIST = ["P01", "P02", "P03", "P04", "P05", "HO-"];
   border-radius: 2px;
 }
 .inp:focus {
-  border-color: #2e2e7d;
+  border-color: #3B5998;
 }
 .idate {
   height: 24px;
@@ -789,7 +789,7 @@ const CABANG_LIST = ["P01", "P02", "P03", "P04", "P05", "HO-"];
   flex: 1;
 }
 .idate:focus {
-  border-color: #2e2e7d;
+  border-color: #3B5998;
 }
 .ro {
   background: #e8e8f5 !important;
@@ -807,7 +807,7 @@ const CABANG_LIST = ["P01", "P02", "P03", "P04", "P05", "HO-"];
   box-sizing: border-box;
 }
 .ta:focus {
-  border-color: #2e2e7d;
+  border-color: #3B5998;
 }
 .sep {
   height: 1px;
@@ -823,7 +823,7 @@ const CABANG_LIST = ["P01", "P02", "P03", "P04", "P05", "HO-"];
   padding: 5px 10px;
   font-size: 11px;
   font-weight: 700;
-  background: #2e2e7d;
+  background: #3B5998;
   color: white;
   border-radius: 3px 3px 0 0;
 }
@@ -861,7 +861,7 @@ const CABANG_LIST = ["P01", "P02", "P03", "P04", "P05", "HO-"];
   top: 0;
   z-index: 1;
   text-align: left;
-  color: #1b1b5e;
+  color: #3B5998;
 }
 .gt tbody td {
   border: 1px solid #e8e8f5;
@@ -895,7 +895,7 @@ const CABANG_LIST = ["P01", "P02", "P03", "P04", "P05", "HO-"];
 }
 .ci:focus:not(.ro) {
   background: #f0f0fd;
-  outline: 1px solid #2e2e7d;
+  outline: 1px solid #3B5998;
   outline-offset: -1px;
 }
 .cell-grp {
@@ -914,7 +914,7 @@ const CABANG_LIST = ["P01", "P02", "P03", "P04", "P05", "HO-"];
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #2e2e7d;
+  color: #3B5998;
 }
 .ci-btn:hover {
   background: #c8c8e6;
@@ -941,7 +941,7 @@ const CABANG_LIST = ["P01", "P02", "P03", "P04", "P05", "HO-"];
   box-sizing: border-box;
 }
 .modal-search:focus {
-  border-color: #2e2e7d;
+  border-color: #3B5998;
 }
 .modal-loading {
   font-size: 12px;
@@ -955,7 +955,7 @@ const CABANG_LIST = ["P01", "P02", "P03", "P04", "P05", "HO-"];
   font-size: 11px;
 }
 .modal-tbl th {
-  background: #2e2e7d;
+  background: #3B5998;
   color: white;
   font-weight: 700;
   padding: 4px 8px;
@@ -992,6 +992,6 @@ const CABANG_LIST = ["P01", "P02", "P03", "P04", "P05", "HO-"];
   font-family: monospace;
 }
 .accent {
-  color: #2e2e7d;
+  color: #3B5998;
 }
 </style>

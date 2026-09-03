@@ -511,7 +511,7 @@ const totalBiayaLain = computed(() =>
   <!-- Dialog Tambah/Ubah -->
   <v-dialog v-model="dialog" max-width="960" width="90%" persistent scrollable>
     <v-card rounded="lg">
-      <v-card-title class="d-flex align-center gap-2 pa-3" style="background:#2e2e7d; color:white;">
+      <v-card-title class="d-flex align-center gap-2 pa-3" style="background:#3B5998; color:white;">
         <IconBox :size="20" /> {{ dialogTitle }}
       </v-card-title>
 
@@ -892,7 +892,7 @@ const totalBiayaLain = computed(() =>
 .f-inp-short { flex: 0 0 120px; }
 .f-status-group { display: flex; align-items: center; gap: 16px; }
 .f-textarea { height: auto; padding: 6px 8px; resize: vertical; }
-.f-inp-native:focus { border-color: #2e2e7d; }
+.f-inp-native:focus { border-color: #3B5998; }
 .f-inp-native:disabled { background-color: #f3f4f6; color: #6b7280; }
 .f-err { border-color: #ef4444 !important; }
 .f-err-text { flex: 1; font-size: 10px; color: #ef4444; }
@@ -918,7 +918,7 @@ const totalBiayaLain = computed(() =>
   background: white;
   overflow: hidden;
 }
-.f-currency-wrap:focus-within { border-color: #2e2e7d; }
+.f-currency-wrap:focus-within { border-color: #3B5998; }
 .f-currency-prefix {
   flex-shrink: 0;
   padding: 0 6px;

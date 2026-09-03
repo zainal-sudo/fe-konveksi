@@ -38,16 +38,16 @@ const originalForm = ref<any>(null);
 
 // ── Lookup ─────────────────────────────────────────────────────────────
 const accountAllOptions = ref<{ kode: string; nama: string; cabang: string }[]>(
-  [],
+  []
 );
 const ccOptions = ref<{ kode: number; nama: string }[]>([]);
 
 // ── Total Debet & Kredit ──────────────────────────────────────────────
 const totalDebet = computed(() =>
-  form.value.detail.reduce((s, d) => s + (Number(d.debet) || 0), 0),
+  form.value.detail.reduce((s, d) => s + (Number(d.debet) || 0), 0)
 );
 const totalKredit = computed(() =>
-  form.value.detail.reduce((s, d) => s + (Number(d.kredit) || 0), 0),
+  form.value.detail.reduce((s, d) => s + (Number(d.kredit) || 0), 0)
 );
 const isBalance = computed(() => totalDebet.value === totalKredit.value);
 const fmt = (v: number) => new Intl.NumberFormat("id-ID").format(v || 0);
@@ -92,7 +92,7 @@ onMounted(async () => {
       addRow();
     } else {
       const d = await jurnalUmumFormApi.getDetailForm(
-        decodeURIComponent(route.params.nomor as string),
+        decodeURIComponent(route.params.nomor as string)
       );
       Object.assign(form.value, d);
       originalForm.value = JSON.parse(JSON.stringify(form.value));
@@ -570,13 +570,13 @@ const confirmClose = () => {
   background: white;
   border: 1px solid #c8c8e6;
   border-radius: 8px;
-  border-top: 3px solid #2e2e7d;
+  border-top: 3px solid #3B5998;
   padding: 12px 14px;
 }
 .form-section-title {
   font-size: 10px;
   font-weight: 700;
-  color: #2e2e7d;
+  color: #3B5998;
   text-transform: uppercase;
   letter-spacing: 0.06em;
   margin-bottom: 10px;
@@ -616,7 +616,7 @@ const confirmClose = () => {
   transition: border-color 0.15s;
 }
 .form-inp:focus {
-  border-color: #2e2e7d;
+  border-color: #3B5998;
   box-shadow: 0 0 0 2px rgba(46, 46, 125, 0.1);
 }
 .form-inp:read-only {
@@ -683,7 +683,7 @@ const confirmClose = () => {
   font-weight: 700;
 }
 .balanced {
-  color: #2e2e7d;
+  color: #3B5998;
 }
 .unbalanced {
   color: #c62828;
@@ -697,7 +697,7 @@ const confirmClose = () => {
 .section-title {
   font-size: 10px;
   font-weight: 700;
-  color: #2e2e7d;
+  color: #3B5998;
   text-transform: uppercase;
   letter-spacing: 0.05em;
   margin-bottom: 8px;
@@ -714,7 +714,7 @@ const confirmClose = () => {
   font-size: 11px;
 }
 .detail-table thead tr {
-  background: #2e2e7d;
+  background: #3B5998;
 }
 .detail-table th {
   color: white;
@@ -733,7 +733,7 @@ const confirmClose = () => {
 }
 .detail-table tfoot .foot-row td {
   background: #f0f0fd;
-  border-top: 2px solid #2e2e7d;
+  border-top: 2px solid #3B5998;
   padding: 4px 6px;
 }
 .foot-lbl {
@@ -744,7 +744,7 @@ const confirmClose = () => {
 .foot-val {
   font-size: 11px;
   font-weight: 700;
-  color: #1b1b5e;
+  color: #3B5998;
   font-variant-numeric: tabular-nums;
 }
 
@@ -759,7 +759,7 @@ const confirmClose = () => {
   background: white;
 }
 .cell-inp:focus {
-  border-color: #2e2e7d;
+  border-color: #3B5998;
 }
 .cell-text {
   font-size: 11px;

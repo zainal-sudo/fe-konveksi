@@ -105,7 +105,7 @@ const loadData = async () => {
   try {
     const res = await rekonsiliasiBankApi.getData(
       filterState.value.startDate,
-      filterState.value.endDate,
+      filterState.value.endDate
     );
     items.value = res.master;
     detailItems.value = res.detail;
@@ -122,7 +122,7 @@ onMounted(loadData);
 // ── Detail helper ─────────────────────────────────────────────────────
 const getDetail = (account: string, tanggal: string) =>
   detailItems.value.filter(
-    (d) => d.Account === account && d.Tanggal === tanggal,
+    (d) => d.Account === account && d.Tanggal === tanggal
   );
 
 // ── Row props — Selisih ≠ 0 → warning orange ─────────────────────────
@@ -135,13 +135,13 @@ const rowPropsFn = (data: any) => {
 
 // ── Summary ───────────────────────────────────────────────────────────
 const totalSelisih = computed(() =>
-  items.value.reduce((s, r) => s + Number(r.Selisih), 0),
+  items.value.reduce((s, r) => s + Number(r.Selisih), 0)
 );
 const totalBuku = computed(() =>
-  items.value.reduce((s, r) => s + Number(r.Buku), 0),
+  items.value.reduce((s, r) => s + Number(r.Buku), 0)
 );
 const totalBank = computed(() =>
-  items.value.reduce((s, r) => s + Number(r.Bank), 0),
+  items.value.reduce((s, r) => s + Number(r.Bank), 0)
 );
 
 const fmt = (v: number) => new Intl.NumberFormat("id-ID").format(v || 0);
@@ -157,13 +157,13 @@ const doExport = () =>
   exportRekonsiliasiBankMaster(
     items.value,
     filterState.value.startDate,
-    filterState.value.endDate,
+    filterState.value.endDate
   );
 const doExportDetail = () =>
   exportRekonsiliasiBankDetail(
     detailItems.value,
     filterState.value.startDate,
-    filterState.value.endDate,
+    filterState.value.endDate
   );
 </script>
 
@@ -298,8 +298,8 @@ const doExportDetail = () =>
                   fmt(
                     getDetail(item.Account, item.Tanggal).reduce(
                       (s, d) => s + Number(d.Nominal),
-                      0,
-                    ),
+                      0
+                    )
                   )
                 }}
               </td>
@@ -354,7 +354,7 @@ const doExportDetail = () =>
   width: 130px;
 }
 .date-inp:focus {
-  border-color: #2e2e7d;
+  border-color: #3B5998;
 }
 
 /* ── Cells ── */
@@ -387,7 +387,7 @@ const doExportDetail = () =>
   font-size: 11px;
 }
 .detail-tbl thead tr {
-  background: #1b1b5e;
+  background: #3B5998;
 }
 .detail-tbl th {
   color: white;
@@ -411,7 +411,7 @@ const doExportDetail = () =>
 }
 .detail-foot td {
   background: #f0f0fd;
-  border-top: 2px solid #2e2e7d;
+  border-top: 2px solid #3B5998;
   padding: 4px 6px;
 }
 .detail-foot-lbl {
@@ -422,7 +422,7 @@ const doExportDetail = () =>
 .detail-foot-val {
   font-size: 11px;
   font-weight: 700;
-  color: #1b1b5e;
+  color: #3B5998;
   font-variant-numeric: tabular-nums;
 }
 
@@ -436,7 +436,7 @@ const doExportDetail = () =>
 }
 .jenis-tambah_buku {
   background: rgba(46, 46, 125, 0.12);
-  color: #2e2e7d;
+  color: #3B5998;
 }
 .jenis-tambah_bank {
   background: rgba(21, 101, 192, 0.12);

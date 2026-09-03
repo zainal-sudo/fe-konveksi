@@ -66,7 +66,7 @@ const loadData = async () => {
     items.value = await pembayaranCustKaosanFormApi.getDataPosting(
       startDate.value,
       endDate.value,
-      selectedCabang.value,
+      selectedCabang.value
     );
   } catch (e: any) {
     if (isAuthExpiredError(e)) return;
@@ -81,17 +81,17 @@ const loadData = async () => {
 const displayItems = computed(() => items.value.filter((d) => d.Status === ""));
 const pendingItems = computed(() => displayItems.value);
 const totalNominal = computed(() =>
-  displayItems.value.reduce((s, d) => s + Number(d.Nominal), 0),
+  displayItems.value.reduce((s, d) => s + Number(d.Nominal), 0)
 );
 const totalPending = computed(() =>
-  pendingItems.value.reduce((s, d) => s + Number(d.Nominal), 0),
+  pendingItems.value.reduce((s, d) => s + Number(d.Nominal), 0)
 );
 
 // ── Validasi & Posting ────────────────────────────────────────────────
 const onValidatePosting = () => {
   if (items.value.length === 0) {
     toast.warning(
-      "Tidak ada data yang akan di posting. Silahkan di refresh dulu.",
+      "Tidak ada data yang akan di posting. Silahkan di refresh dulu."
     );
     return;
   }
@@ -375,7 +375,7 @@ const rowClass = (status: string) => {
   width: 130px;
 }
 .date-inp:focus {
-  border-color: #2e2e7d;
+  border-color: #3B5998;
 }
 .cabang-select {
   height: 32px;
@@ -388,7 +388,7 @@ const rowClass = (status: string) => {
   min-width: 90px;
 }
 .cabang-select:focus {
-  border-color: #2e2e7d;
+  border-color: #3B5998;
 }
 .summary-pill {
   display: flex;
@@ -407,7 +407,7 @@ const rowClass = (status: string) => {
 }
 .pill-val {
   font-size: 11px;
-  color: #2e2e7d;
+  color: #3B5998;
   font-weight: 700;
 }
 
@@ -440,7 +440,7 @@ const rowClass = (status: string) => {
   font-size: 11px;
 }
 .form-tbl thead tr {
-  background: #2e2e7d;
+  background: #3B5998;
 }
 .form-tbl th {
   color: white;
@@ -451,7 +451,7 @@ const rowClass = (status: string) => {
   position: sticky;
   top: 0;
   z-index: 1;
-  background: #2e2e7d;
+  background: #3B5998;
 }
 .form-tbl td {
   padding: 3px 8px;
@@ -464,7 +464,7 @@ const rowClass = (status: string) => {
 
 .row-sukses td {
   background: #f0f0fd !important;
-  color: #2e2e7d;
+  color: #3B5998;
 }
 .row-sudah td {
   background: #f5f5f5 !important;
@@ -473,7 +473,7 @@ const rowClass = (status: string) => {
 
 .tfoot-row td {
   background: #f0f0fd;
-  border-top: 2px solid #2e2e7d;
+  border-top: 2px solid #3B5998;
   padding: 5px 8px;
   position: sticky;
   bottom: 0;
@@ -486,13 +486,13 @@ const rowClass = (status: string) => {
 .tfoot-val {
   font-size: 11px;
   font-weight: 700;
-  color: #1b1b5e;
+  color: #3B5998;
   font-variant-numeric: tabular-nums;
 }
 
 .badge-sukses {
   background: #e8e8f5;
-  color: #2e2e7d;
+  color: #3B5998;
   padding: 1px 8px;
   border-radius: 10px;
   font-size: 10px;

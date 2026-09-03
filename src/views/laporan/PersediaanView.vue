@@ -187,7 +187,7 @@ const totalNilai = computed(() =>
   width: 130px;
 }
 .date-inp:focus {
-  border-color: #2e2e7d;
+  border-color: #3B5998;
 }
 .num-cell {
   font-variant-numeric: tabular-nums;

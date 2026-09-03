@@ -657,7 +657,7 @@ const fmt = (v: number) => new Intl.NumberFormat("id-ID").format(v || 0);
   height: 32px; border: 1px solid #d1d5db; border-radius: 6px;
   padding: 0 8px; font-size: 12px; outline: none; width: 130px;
 }
-.date-inp:focus { border-color: #2e2e7d; }
+.date-inp:focus { border-color: #3B5998; }
 .tc { text-align: center; }
 .tr { text-align: right; font-variant-numeric: tabular-nums; }
 .badge-yes { background:#e0f2e9; color:#2e7d32; padding:1px 8px; border-radius:10px; font-size:10px; font-weight:700; }

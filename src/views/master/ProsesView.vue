@@ -308,7 +308,7 @@ const handleDelete = async (item: Proses) => {
   align-items: center;
   gap: 8px;
   padding: 14px 18px;
-  background: linear-gradient(135deg, #2e2e7d, #3d3d9e);
+  background: linear-gradient(135deg, #3B5998, #3d3d9e);
   color: white;
   font-size: 15px;
   font-weight: 700;
@@ -339,7 +339,7 @@ const handleDelete = async (item: Proses) => {
   font-family: inherit;
   transition: border-color 0.15s;
 }
-.f-inp-native:focus { border-color: #2e2e7d; }
+.f-inp-native:focus { border-color: #3B5998; }
 .f-inp-native:disabled { background-color: #f3f4f6; color: #6b7280; }
 .f-err { border-color: #ef4444 !important; }
 .f-err-text { flex: 1; font-size: 10px; color: #ef4444; padding-left: 0; }
@@ -365,12 +365,12 @@ const handleDelete = async (item: Proses) => {
   justify-content: space-between;
   padding-bottom: 10px;
   margin-bottom: 10px;
-  border-bottom: 2px solid #2e2e7d;
+  border-bottom: 2px solid #3B5998;
 }
 .step-section-title {
   font-size: 12px;
   font-weight: 700;
-  color: #2e2e7d;
+  color: #3B5998;
   letter-spacing: 0.03em;
   text-transform: uppercase;
 }
@@ -417,7 +417,7 @@ const handleDelete = async (item: Proses) => {
   transition: border-color 0.15s, box-shadow 0.15s;
 }
 .step-row:focus-within {
-  border-color: #2e2e7d;
+  border-color: #3B5998;
   box-shadow: 0 0 0 3px rgba(46, 46, 125, 0.08);
 }
 .step-grip {
@@ -429,7 +429,7 @@ const handleDelete = async (item: Proses) => {
   flex-shrink: 0;
   width: 24px;
   height: 24px;
-  background: #2e2e7d;
+  background: #3B5998;
   border-radius: 50%;
   display: flex;
   align-items: center;

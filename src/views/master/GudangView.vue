@@ -149,7 +149,7 @@ const handleDelete = async (item: Gudang) => {
   <!-- Dialog Tambah/Ubah -->
   <v-dialog v-model="dialog" max-width="600" persistent>
     <v-card rounded="lg">
-      <v-card-title class="d-flex align-center gap-2 pa-3" style="background:#2e2e7d; color:white;">
+      <v-card-title class="d-flex align-center gap-2 pa-3" style="background:#3B5998; color:white;">
         <IconBuildingWarehouse :size="20" /> {{ dialogTitle }}
       </v-card-title>
 
@@ -257,7 +257,7 @@ const handleDelete = async (item: Gudang) => {
   outline: none;
   background: white;
 }
-.f-inp-native:focus { border-color: #2e2e7d; }
+.f-inp-native:focus { border-color: #3B5998; }
 .f-inp-native:disabled { background-color: #f3f4f6; color: #6b7280; }
 .f-err { border-color: #ef4444 !important; }
 .f-err-text { flex: 1; font-size: 10px; color: #ef4444; }

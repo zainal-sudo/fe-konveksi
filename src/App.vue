@@ -115,7 +115,7 @@ const goToLogin = () => {
       <v-card-item class="bg-primary text-white pa-4">
         <template #prepend>
           <v-avatar color="white" variant="flat" size="42">
-            <IconDownload :size="24" :stroke-width="2" color="#2e2e7d" />
+            <IconDownload :size="24" :stroke-width="2" color="#3B5998" />
           </v-avatar>
         </template>
         <v-card-title class="text-body-1 font-weight-bold" style="color: white">
@@ -134,7 +134,7 @@ const goToLogin = () => {
           >
           <span style="font-size: 13px; color: #555"
             >Versi Baru:
-            <strong style="color: #2e2e7d"
+            <strong style="color: #3B5998"
               >v{{ updateInfo?.version }}</strong
             ></span
           >
@@ -180,7 +180,7 @@ const goToLogin = () => {
 .notes-title {
   font-size: 12px;
   font-weight: 700;
-  color: #1b1b5e;
+  color: #3B5998;
   margin-bottom: 6px;
   text-transform: uppercase;
 }

@@ -50,7 +50,7 @@ watch(
       /* silent */
     }
   },
-  { deep: true },
+  { deep: true }
 );
 
 const filterValues = computed(() => ({ ...filterState.value }));
@@ -120,13 +120,13 @@ const rowPropsFn = (data: any) => {
 
 // ── Summary ───────────────────────────────────────────────────────────
 const totalStok = computed(() =>
-  items.value.reduce((s, r) => s + Number(r.Stok), 0),
+  items.value.reduce((s, r) => s + Number(r.Stok), 0)
 );
 const totalMutasi = computed(() =>
-  items.value.reduce((s, r) => s + Number(r.Mutasi), 0),
+  items.value.reduce((s, r) => s + Number(r.Mutasi), 0)
 );
 const totalReal = computed(() =>
-  items.value.reduce((s, r) => s + Number(r.REAL_), 0),
+  items.value.reduce((s, r) => s + Number(r.REAL_), 0)
 );
 
 const fmt = (v: number) => new Intl.NumberFormat("id-ID").format(v || 0);
@@ -229,8 +229,8 @@ const doExport = () => exportStokFinance(items.value, filterState.value.cabang);
                   fmt(
                     getDetail(item.Kode).reduce(
                       (s, d) => s + Number(d.StokIn),
-                      0,
-                    ),
+                      0
+                    )
                   )
                 }}
               </td>
@@ -239,8 +239,8 @@ const doExport = () => exportStokFinance(items.value, filterState.value.cabang);
                   fmt(
                     getDetail(item.Kode).reduce(
                       (s, d) => s + Number(d.StokOut),
-                      0,
-                    ),
+                      0
+                    )
                   )
                 }}
               </td>
@@ -249,8 +249,8 @@ const doExport = () => exportStokFinance(items.value, filterState.value.cabang);
                   fmt(
                     getDetail(item.Kode).reduce(
                       (s, d) => s + Number(d.Selisih),
-                      0,
-                    ),
+                      0
+                    )
                   )
                 }}
               </td>
@@ -299,7 +299,7 @@ const doExport = () => exportStokFinance(items.value, filterState.value.cabang);
   min-width: 100px;
 }
 .cab-select:focus {
-  border-color: #2e2e7d;
+  border-color: #3B5998;
 }
 
 /* ── Cells ── */
@@ -332,7 +332,7 @@ const doExport = () => exportStokFinance(items.value, filterState.value.cabang);
   font-size: 11px;
 }
 .detail-tbl thead tr {
-  background: #1b1b5e;
+  background: #3B5998;
 }
 .detail-tbl th {
   color: white;
@@ -356,7 +356,7 @@ const doExport = () => exportStokFinance(items.value, filterState.value.cabang);
 }
 .detail-foot td {
   background: #f0f0fd;
-  border-top: 2px solid #2e2e7d;
+  border-top: 2px solid #3B5998;
   padding: 4px 6px;
 }
 .detail-foot-lbl {
@@ -367,7 +367,7 @@ const doExport = () => exportStokFinance(items.value, filterState.value.cabang);
 .detail-foot-val {
   font-size: 11px;
   font-weight: 700;
-  color: #1b1b5e;
+  color: #3B5998;
   font-variant-numeric: tabular-nums;
 }
 .tc {

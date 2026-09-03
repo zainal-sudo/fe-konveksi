@@ -485,7 +485,7 @@ const toggleGroup = (title: string) => {
                   :size="15"
                   :stroke-width="1.8"
                   class="mr-2"
-                  style="color: #2e2e7d"
+                  style="color: #3B5998"
                 />
               </template>
               <v-list-item-title style="font-size: 13px"
@@ -522,7 +522,7 @@ const toggleGroup = (title: string) => {
   <v-dialog v-model="showPasswordDialog" max-width="380" persistent>
     <v-card rounded="lg">
       <v-card-title class="pw-dialog-title">
-        <IconLock :size="18" :stroke-width="1.8" color="#2e2e7d" />
+        <IconLock :size="18" :stroke-width="1.8" color="#3B5998" />
         Ganti Password
       </v-card-title>
       <v-card-text class="pa-4 pt-2">
@@ -581,7 +581,7 @@ const toggleGroup = (title: string) => {
 <style scoped>
 /* ── Drawer ── */
 .finance-drawer {
-  background: #1b1b5e !important;
+  background: #2a497c !important;
   border-right: none !important;
 }
 
@@ -661,7 +661,7 @@ const toggleGroup = (title: string) => {
 .appbar-title {
   font-size: 14px;
   font-weight: 600;
-  color: #2e2e7d;
+  color: #3B5998;
 }
 
 /* ── Main ── */
@@ -704,7 +704,7 @@ const toggleGroup = (title: string) => {
 .pw-dialog-title {
   font-size: 14px !important;
   font-weight: 700 !important;
-  border-top: 3px solid #2e2e7d;
+  border-top: 3px solid #3B5998;
   display: flex;
   align-items: center;
   gap: 8px;
@@ -735,7 +735,7 @@ const toggleGroup = (title: string) => {
   box-sizing: border-box;
 }
 .pw-inp:focus {
-  border-color: #2e2e7d;
+  border-color: #3B5998;
   box-shadow: 0 0 0 3px rgba(46, 46, 125, 0.1);
 }
 .pw-error {
@@ -766,7 +766,7 @@ const toggleGroup = (title: string) => {
   width: 32px;
   height: 32px;
   border-radius: 50%;
-  background: #2e2e7d;
+  background: #3B5998;
   color: white;
   font-size: 13px;
   font-weight: 700;

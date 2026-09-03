@@ -149,7 +149,7 @@ const formatRupiah = (v: number) => new Intl.NumberFormat("id-ID", { style: "cur
   <!-- Dialog Tambah/Ubah -->
   <v-dialog v-model="dialog" max-width="700" persistent>
     <v-card rounded="lg">
-      <v-card-title class="d-flex align-center gap-2 pa-3" style="background:#2e2e7d; color:white;">
+      <v-card-title class="d-flex align-center gap-2 pa-3" style="background:#3B5998; color:white;">
         <IconUsers :size="20" /> {{ dialogTitle }}
       </v-card-title>
 
@@ -267,7 +267,7 @@ const formatRupiah = (v: number) => new Intl.NumberFormat("id-ID", { style: "cur
   outline: none;
   background: white;
 }
-.f-inp-native:focus { border-color: #2e2e7d; }
+.f-inp-native:focus { border-color: #3B5998; }
 .f-inp-native.tr { text-align: right; }
 .f-inp-native:disabled { background-color: #f3f4f6; color: #6b7280; }
 .readonly-bg { background-color: #f3f4f6; color: #6b7280; }

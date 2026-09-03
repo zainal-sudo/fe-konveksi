@@ -135,9 +135,7 @@ const chartBars = computed(() => {
             {{ greeting }},
             <span class="name">{{ authStore.userName || "User" }}</span> 👋
           </h2>
-          <p class="greeting-sub">
-            Entri Manufacture Management System
-          </p>
+          <p class="greeting-sub">Entri Manufacture Management System</p>
         </div>
         <div class="info-pills">
           <div
@@ -168,7 +166,7 @@ const chartBars = computed(() => {
             style="
               font-size: 14px;
               font-weight: 700;
-              border-top: 3px solid #2e2e7d;
+              border-top: 3px solid #3B5998;
             "
           >
             Catatan Rilis (Changelog)
@@ -434,7 +432,7 @@ const chartBars = computed(() => {
       <!-- ── Chart proporsi tugas ── -->
       <div v-if="!isSummaryLoading && chartBars.length" class="chart-section">
         <h3 class="section-title">
-          <IconTrendingUp :size="14" style="color: #2e2e7d" />
+          <IconTrendingUp :size="14" style="color: #3B5998" />
           Proporsi Tugas Menunggu
         </h3>
         <div class="bar-chart-wrap">
@@ -456,7 +454,7 @@ const chartBars = computed(() => {
 
       <!-- ── Aksi Cepat ── -->
       <h3 class="section-title" style="margin-top: 28px">
-        <IconTrendingUp :size="14" style="color: #2e2e7d" />
+        <IconTrendingUp :size="14" style="color: #3B5998" />
         Aksi Cepat
       </h3>
       <div class="quick-actions">
@@ -528,7 +526,7 @@ const chartBars = computed(() => {
   margin: 0 0 4px;
 }
 .name {
-  color: #2e2e7d;
+  color: #3B5998;
 }
 .greeting-sub {
   font-size: 12px;
@@ -551,7 +549,7 @@ const chartBars = computed(() => {
   padding: 4px 12px;
   font-size: 11px;
   font-weight: 600;
-  color: #2e2e7d;
+  color: #3B5998;
 }
 .info-pill.clickable {
   cursor: pointer;
@@ -563,7 +561,7 @@ const chartBars = computed(() => {
 
 /* ── Saldo Hero ── */
 .saldo-hero {
-  background: linear-gradient(135deg, #2e2e7d, #1b1b5e);
+  background: linear-gradient(135deg, #3B5998, #3B5998);
   border-radius: 12px;
   padding: 20px 24px;
   display: flex;
@@ -656,7 +654,7 @@ const chartBars = computed(() => {
   background: #1565c0;
 }
 .task-green::before {
-  background: #2e2e7d;
+  background: #3B5998;
 }
 
 .task-top {
@@ -687,7 +685,7 @@ const chartBars = computed(() => {
 }
 .task-icon-wrap.green {
   background: #e8e8f5;
-  color: #2e2e7d;
+  color: #3B5998;
 }
 .task-arrow {
   color: #9ca3af;
@@ -710,7 +708,7 @@ const chartBars = computed(() => {
   color: #1565c0;
 }
 .task-green .task-count {
-  color: #2e2e7d;
+  color: #3B5998;
 }
 
 .task-label {
@@ -799,19 +797,19 @@ const chartBars = computed(() => {
   transition: all 0.15s;
 }
 .qa-btn:hover {
-  border-color: #2e2e7d;
+  border-color: #3B5998;
   background: #f1f1f8;
-  color: #2e2e7d;
+  color: #3B5998;
 }
 .qa-icon {
-  color: #2e2e7d;
+  color: #3B5998;
 }
 
 /* ── Changelog ── */
 .changelog-version {
   font-size: 13px;
   font-weight: 700;
-  color: #2e2e7d;
+  color: #3B5998;
   margin-bottom: 4px;
   padding-bottom: 2px;
   border-bottom: 1px solid #e0e0e0;

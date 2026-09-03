@@ -63,7 +63,7 @@ watch(
       /* silent */
     }
   },
-  { deep: true },
+  { deep: true }
 );
 
 const filterValues = computed(() => ({ ...filterState.value }));
@@ -179,8 +179,10 @@ const onPrint = () => {
   if (!selectedItem.value)
     return toast.warning("Pilih data yang akan dicetak.");
   window.open(
-    `/transaksi/mutasi-out/print/${encodeURIComponent(selectedItem.value.Nomor)}`,
-    "_blank",
+    `/transaksi/mutasi-out/print/${encodeURIComponent(
+      selectedItem.value.Nomor
+    )}`,
+    "_blank"
   );
 };
 
@@ -232,7 +234,12 @@ const fmtDateTime = (val: string) => {
   if (!val) return "-";
   const d = new Date(val);
   if (isNaN(d.getTime())) return val;
-  return `${String(d.getDate()).padStart(2, "0")}-${String(d.getMonth() + 1).padStart(2, "0")}-${d.getFullYear()} ${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+  return `${String(d.getDate()).padStart(2, "0")}-${String(
+    d.getMonth() + 1
+  ).padStart(2, "0")}-${d.getFullYear()} ${String(d.getHours()).padStart(
+    2,
+    "0"
+  )}:${String(d.getMinutes()).padStart(2, "0")}`;
 };
 
 const fmtQty = (v: number) =>
@@ -244,7 +251,7 @@ const fmtQty = (v: number) =>
 const getNomorStyle = (ngedit: string) => {
   if (ngedit === "WAIT") return "background:#1565c0;color:#fff;";
   if (ngedit === "TOLAK") return "background:#c62828;color:#fff;";
-  if (ngedit === "ACC") return "background:#2e2e7d;color:#fff;";
+  if (ngedit === "ACC") return "background:#3B5998;color:#fff;";
   return "";
 };
 </script>
@@ -417,7 +424,7 @@ const getNomorStyle = (ngedit: string) => {
     <v-card rounded="lg">
       <v-card-title
         class="pa-4 pb-2"
-        style="font-size: 13px; font-weight: 700; border-top: 3px solid #2e2e7d"
+        style="font-size: 13px; font-weight: 700; border-top: 3px solid #3B5998"
       >
         Pengajuan Perubahan Data
       </v-card-title>
@@ -480,7 +487,7 @@ const getNomorStyle = (ngedit: string) => {
   background: white;
 }
 .date-inp:focus {
-  border-color: #2e2e7d;
+  border-color: #3B5998;
 }
 
 .radio-wrap {
@@ -504,7 +511,7 @@ const getNomorStyle = (ngedit: string) => {
   white-space: nowrap;
 }
 .radio-item input {
-  accent-color: #2e2e7d;
+  accent-color: #3B5998;
   width: 13px;
   height: 13px;
   cursor: pointer;
@@ -535,7 +542,7 @@ const getNomorStyle = (ngedit: string) => {
   font-size: 11px;
 }
 .det-tbl thead tr {
-  background: #1b1b5e;
+  background: #3B5998;
 }
 .det-tbl th {
   color: white;
@@ -556,7 +563,7 @@ const getNomorStyle = (ngedit: string) => {
   font-family: monospace;
 }
 .accent {
-  color: #2e2e7d;
+  color: #3B5998;
 }
 .bold {
   font-weight: 700;

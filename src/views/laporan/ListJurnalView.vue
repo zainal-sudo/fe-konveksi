@@ -69,7 +69,7 @@ watch(
       /* silent */
     }
   },
-  { deep: true },
+  { deep: true }
 );
 
 // filterValues → BaseBrowse watch → emit refresh → loadData
@@ -108,7 +108,7 @@ const loadData = async () => {
   try {
     items.value = await listJurnalApi.getListJurnal(
       filterState.value.startDate,
-      filterState.value.endDate,
+      filterState.value.endDate
     );
     pivotRendered.value = false; // data baru → pivot perlu di-render ulang
   } catch (e: any) {
@@ -158,12 +158,12 @@ const renderPivot = async () => {
       onRefresh: (config: Record<string, unknown>) => {
         localStorage.setItem(
           "pivot_config_list_jurnal",
-          JSON.stringify(config),
+          JSON.stringify(config)
         );
         pivotConfigVersion.value++;
       },
     },
-    true,
+    true
   );
 };
 
@@ -265,7 +265,7 @@ const chartData = computed(() => {
   for (const item of plainData) {
     const rowLabel = rows.length
       ? rows.map((r) => item[r] ?? "").join(" / ")
-      : (item[rowKey] ?? "");
+      : item[rowKey] ?? "";
     const colLabel = getColKey(item);
     colSet.add(colLabel);
 
@@ -333,7 +333,7 @@ watch([activeTab, chartData, chartType], async ([tab]) => {
     LinearScale,
     Tooltip,
     Legend,
-    Filler,
+    Filler
   );
 
   if (chartInstance) {
@@ -342,7 +342,7 @@ watch([activeTab, chartData, chartType], async ([tab]) => {
   }
 
   const palette = [
-    { bg: "rgba(46, 46, 125,0.75)", border: "#2e2e7d" },
+    { bg: "rgba(46, 46, 125,0.75)", border: "#3B5998" },
     { bg: "rgba(21,101,192,0.65)", border: "#1565c0" },
     { bg: "rgba(239,108,0,0.65)", border: "#ef6c00" },
     { bg: "rgba(106,27,154,0.65)", border: "#6a1b9a" },
@@ -355,7 +355,7 @@ watch([activeTab, chartData, chartType], async ([tab]) => {
   // ── Pie: hanya pakai dataset pertama, label = labels, data = nilai dataset pertama
   if (chartType.value === "pie") {
     const pieData = chartData.value.labels.map((_, i) =>
-      datasets.reduce((s, ds) => s + (ds.data[i] ?? 0), 0),
+      datasets.reduce((s, ds) => s + (ds.data[i] ?? 0), 0)
     );
     const pieColors = labels.map((_, i) => palette[i % palette.length]);
     chartInstance = new Chart(chartCanvasRef.value, {
@@ -380,7 +380,9 @@ watch([activeTab, chartData, chartType], async ([tab]) => {
           tooltip: {
             callbacks: {
               label: (ctx) =>
-                `${ctx.label}: ${new Intl.NumberFormat("id-ID").format(ctx.parsed ?? 0)}`,
+                `${ctx.label}: ${new Intl.NumberFormat("id-ID").format(
+                  ctx.parsed ?? 0
+                )}`,
             },
           },
         },
@@ -431,7 +433,7 @@ watch([activeTab, chartData, chartType], async ([tab]) => {
           callbacks: {
             label: (ctx) =>
               `${ctx.dataset.label}: ${new Intl.NumberFormat("id-ID").format(
-                (isHorizontalBar ? ctx.parsed.x : ctx.parsed.y) ?? 0,
+                (isHorizontalBar ? ctx.parsed.x : ctx.parsed.y) ?? 0
               )}`,
           },
         },
@@ -441,7 +443,7 @@ watch([activeTab, chartData, chartType], async ([tab]) => {
           ticks: {
             callback: (v) =>
               new Intl.NumberFormat("id-ID", { notation: "compact" }).format(
-                Number(v),
+                Number(v)
               ),
           },
         },
@@ -466,7 +468,7 @@ const doExport = () =>
   exportListJurnal(
     items.value,
     filterState.value.startDate,
-    filterState.value.endDate,
+    filterState.value.endDate
   );
 
 const doExportPivot = async () => {
@@ -508,7 +510,7 @@ const doExportPivot = async () => {
     vals[0] ?? "Nilai",
     aggregator,
     filterState.value.startDate,
-    filterState.value.endDate,
+    filterState.value.endDate
   );
 };
 </script>
@@ -578,8 +580,8 @@ const doExportPivot = async () => {
             fmt(
               filteredItems.reduce(
                 (s: number, r: any) => s + Number(r.Debet),
-                0,
-              ),
+                0
+              )
             )
           }}
         </span>
@@ -589,8 +591,8 @@ const doExportPivot = async () => {
             fmt(
               filteredItems.reduce(
                 (s: number, r: any) => s + Number(r.Kredit),
-                0,
-              ),
+                0
+              )
             )
           }}
         </span>
@@ -764,7 +766,7 @@ const doExportPivot = async () => {
   width: 130px;
 }
 .date-inp:focus {
-  border-color: #2e2e7d;
+  border-color: #3B5998;
 }
 
 /* ── Tab selector ── */
@@ -795,10 +797,10 @@ const doExportPivot = async () => {
 }
 .tab-btn:hover {
   background: rgba(46, 46, 125, 0.08);
-  color: #2e2e7d;
+  color: #3B5998;
 }
 .tab-btn.active {
-  background: #2e2e7d;
+  background: #3B5998;
   color: white;
 }
 
@@ -828,7 +830,7 @@ const doExportPivot = async () => {
   height: 28px;
   border-radius: 6px;
   background: rgba(46, 46, 125, 0.1);
-  color: #2e2e7d;
+  color: #3B5998;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -849,7 +851,7 @@ const doExportPivot = async () => {
   min-height: 0;
   background: rgb(var(--v-theme-surface));
   border: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
-  border-top: 3px solid #2e2e7d;
+  border-top: 3px solid #3B5998;
   border-radius: 6px;
   display: flex;
   flex-direction: column;
@@ -923,7 +925,7 @@ const doExportPivot = async () => {
 }
 :deep(.pvtAttr) {
   background: rgba(46, 46, 125, 0.1) !important;
-  color: #2e2e7d !important;
+  color: #3B5998 !important;
   border: 1px solid rgba(46, 46, 125, 0.25) !important;
   border-radius: 3px !important;
   padding: 2px 7px !important;
@@ -931,7 +933,7 @@ const doExportPivot = async () => {
   cursor: grab !important;
 }
 :deep(.pvtTable th) {
-  background: #2e2e7d !important;
+  background: #3B5998 !important;
   color: white !important;
   font-weight: 700 !important;
   padding: 5px 9px !important;
@@ -991,7 +993,7 @@ const doExportPivot = async () => {
   font-size: 11px !important;
   font-weight: 700 !important;
   color: white !important;
-  background: #2e2e7d !important;
+  background: #3B5998 !important;
   margin: 0 !important;
   padding: 8px 12px !important;
   letter-spacing: 0.04em !important;
@@ -1010,7 +1012,7 @@ const doExportPivot = async () => {
 .pvtFilterBox p a {
   font-size: 11px !important;
   font-weight: 600 !important;
-  color: #2e2e7d !important;
+  color: #3B5998 !important;
   text-decoration: none !important;
   padding: 2px 8px !important;
   border: 1px solid #c8c8e6 !important;
@@ -1020,7 +1022,7 @@ const doExportPivot = async () => {
   transition: all 0.15s !important;
 }
 .pvtFilterBox p a:hover {
-  background: #2e2e7d !important;
+  background: #3B5998 !important;
   color: white !important;
 }
 
@@ -1057,7 +1059,7 @@ const doExportPivot = async () => {
   width: 100% !important;
 }
 .pvtFilterBox .pvtCheckContainer input[type="checkbox"] {
-  accent-color: #2e2e7d !important;
+  accent-color: #3B5998 !important;
   width: 13px !important;
   height: 13px !important;
   flex-shrink: 0 !important;
@@ -1085,11 +1087,11 @@ const doExportPivot = async () => {
 }
 /* Apply button */
 .pvtFilterBox button:first-of-type {
-  background: #2e2e7d !important;
+  background: #3B5998 !important;
   color: white !important;
 }
 .pvtFilterBox button:first-of-type:hover {
-  background: #1b1b5e !important;
+  background: #3B5998 !important;
 }
 /* Cancel button */
 .pvtFilterBox button:last-of-type {
@@ -1127,6 +1129,6 @@ const doExportPivot = async () => {
   cursor: pointer;
 }
 .chart-type-select:focus {
-  border-color: #2e2e7d;
+  border-color: #3B5998;
 }
 </style>

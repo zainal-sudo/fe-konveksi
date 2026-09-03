@@ -709,7 +709,7 @@ const rowPropsFn = (data: any) => {
   width: 130px;
 }
 .date-inp:focus {
-  border-color: #2E2E7D;
+  border-color: #3B5998;
 }
 
 .tc {
@@ -738,7 +738,7 @@ const rowPropsFn = (data: any) => {
 }
 .badge-open {
   background: #E8E8F5;
-  color: #2E2E7D;
+  color: #3B5998;
   padding: 1px 8px;
   border-radius: 10px;
   font-size: 10px;

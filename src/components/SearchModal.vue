@@ -259,12 +259,12 @@ const formatValue = (val: any) => {
   align-items: center;
   gap: 8px;
   padding: 12px 16px 10px;
-  border-top: 3px solid #2e2e7d;
+  border-top: 3px solid #3B5998;
   background: rgb(var(--v-theme-surface));
   flex-shrink: 0;
 }
 .sm-header-icon {
-  color: #2e2e7d;
+  color: #3B5998;
   flex-shrink: 0;
 }
 .sm-header-title {
@@ -308,7 +308,7 @@ const formatValue = (val: any) => {
   transition: border-color 0.15s;
 }
 .sm-search-wrap:focus-within {
-  border-color: #2e2e7d;
+  border-color: #3B5998;
 }
 .sm-search-icon {
   color: rgba(var(--v-theme-on-surface), 0.4);
@@ -346,7 +346,7 @@ const formatValue = (val: any) => {
   font-size: 12px;
 }
 .sm-table thead tr {
-  background: #2e2e7d;
+  background: #3B5998;
   position: sticky;
   top: 0;
   z-index: 1;

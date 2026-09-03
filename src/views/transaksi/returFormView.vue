@@ -834,7 +834,7 @@ const fmtCurrency = (v: number) =>
   padding: 4px 8px;
 }
 .f-inp-native:focus, .f-txa-native:focus {
-  border-color: #2e2e7d;
+  border-color: #3B5998;
 }
 .readonly-bg {
   background-color: #f3f4f6;
@@ -851,7 +851,7 @@ const fmtCurrency = (v: number) =>
 .btn-search {
   height: 28px;
   width: 32px;
-  background: #2e2e7d;
+  background: #3B5998;
   color: white;
   border: none;
   border-radius: 4px;
@@ -870,7 +870,7 @@ const fmtCurrency = (v: number) =>
   padding: 10px;
 }
 .summary-box {
-  background: #2e2e7d;
+  background: #3B5998;
   color: white;
   padding: 10px;
   border-radius: 4px;
@@ -909,7 +909,7 @@ const fmtCurrency = (v: number) =>
 .section-title {
   font-size: 11px;
   font-weight: 700;
-  color: #2e2e7d;
+  color: #3B5998;
   text-transform: uppercase;
 }
 .detail-table-wrap {
@@ -923,7 +923,7 @@ const fmtCurrency = (v: number) =>
   font-size: 11px;
 }
 .detail-table thead tr {
-  background: #2e2e7d;
+  background: #3B5998;
 }
 .detail-table th {
   color: white;
@@ -949,7 +949,7 @@ const fmtCurrency = (v: number) =>
   font-size: 11px;
   outline: none;
 }
-.cell-inp:focus { border-color: #2e2e7d; }
+.cell-inp:focus { border-color: #3B5998; }
 
 .cell-search-group {
   display: flex;
@@ -959,7 +959,7 @@ const fmtCurrency = (v: number) =>
 .cell-btn-search {
   height: 24px;
   width: 24px;
-  background: #2e2e7d;
+  background: #3B5998;
   color: white;
   border: none;
   border-radius: 3px;
