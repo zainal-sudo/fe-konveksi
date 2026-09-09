@@ -1,634 +1,636 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted, nextTick,watch } from "vue";
-import { useRouter } from "vue-router";
+import { ref, computed, onMounted, watch } from "vue";
+import { useRoute, useRouter } from "vue-router";
 import { useToast } from "vue-toastification";
-import { IconSearch, IconDeviceFloppy, IconArrowLeft, IconTrash, IconReload } from "@tabler/icons-vue";
-import { penjualanApi } from "@/api/transaksi/penjualanApi";
-import { returFormApi } from "@/api/transaksi/returFormApi";
-
-// 🔴 SAMAKAN IMPORT DENGAN RETUR (Mengambil SearchModal global)
+import { useAuthStore } from "@/stores/authStore";
+import BaseForm from "@/components/BaseForm.vue";
+import { useTabsStore } from "@/stores/tabsStore";
 import SearchModal from "@/components/SearchModal.vue";
+import { nextTick } from "vue"; // Pastikan sudah di-import
+import {
+  IconShoppingCart,
+  IconSearch,
+  IconPlus,
+  IconTrash,
+  IconMapPin,
+  IconPhone,
+} from "@tabler/icons-vue";
+import { penjualanFormApi, type PenjualanForm, type PenjualanDetail } from "@/api/transaksi/penjualanFormApi";
 
+const route = useRoute();
 const router = useRouter();
 const toast = useToast();
+const authStore = useAuthStore();
 
-const tipeHargaAktif = ref("eceran"); 
+const MENU_ID = "33";
+const isEdit = computed(() => !!route.params.nomor);
+const isLoading = ref(false);
+const isSaving = ref(false);
+const isSavingNew = ref(false);
 
-// Opsi tingkat harga untuk Combo Box (v-select)
-const opsiTingkatHarga = [
-  { title: "Harga Eceran (PCS)", value: "eceran" },
-  { title: "Harga Grosir (LSN)", value: "grosir" },
-  { title: "Harga Besar (CRT)", value: "besar" },
-  { title: "Harga Khusus / Promo", value: "khusus" }
-];
+const showSaveDialog = ref(false);
+const showCancelDialog = ref(false);
+const showCloseDialog = ref(false);
+const savedNomor = ref("");
+const saveMode = ref<"normal" | "new">("normal");
+const tabsStore = useTabsStore();
+const today = new Date().toISOString().slice(0, 10);
 
-const dapatkanHargaValid = (barang: any, tingkat: string): number => {
-  let hargaTerpilih = 0;
+const emptyForm = (): PenjualanForm => ({
+  isEdit: false,
+  nomor: "",
+  tanggal: today,
+  cusKode: "",
+  cusNama: "",
+  cusAlamat: "",
+  cusTelp: "",
+  memo: "",
+  isTax: 0,
+  discFakturPr: 0,
+  discFaktur: 0,
+  amount: 0,
+  taxAmount: 0,
+  dateline: today,
+  cusTop: 0,
+  pemesan: "",
+  detail: [],
+});
 
-  // Sesuaikan nama properti field dengan data dari objek master barang Anda
-  if (tingkat === "eceran") hargaTerpilih = Number(barang.brg_harga_eceran || barang.brg_harga_eceran || 0);
-  else if (tingkat === "grosir") hargaTerpilih = Number(barang.brg_harga_grosir || barang.hargaGrosir || 0);
-  else if (tingkat === "besar") hargaTerpilih = Number(barang.brg_harga_besar || barang.hargaBesar || 0);
-  else if (tingkat === "khusus") hargaTerpilih = Number(barang.brg_harga_khusus || barang.hargaKhusus || 0);
+const form = ref<PenjualanForm>(emptyForm());
 
-  // Jika harga tingkat yang dipilih bernilai 0, lemparkan peringatan dan gunakan eceran sebagai cadangan
-  if (hargaTerpilih === 0) {
-    const namaTingkat = tingkat.toUpperCase();
-    toast.warning(`Master ${namaTingkat} untuk barang "${barang.brg_nama || barang.nama}" bernilai Rp 0! Otomatis beralih ke Harga Eceran.`);
-    
-    // Gunakan harga eceran sebagai fallback utama
-    return Number(barang.brg_harga_eceran || barang.hargaEceran || 0);
-  }
+const customerOptions = ref<any[]>([]);
+const barangOptions = ref<any[]>([]);
+const customerLoading = ref(false);
+const barangLoading = ref(false);
 
-  return hargaTerpilih;
+const showCustomerModal = ref(false);
+const showBarangModal = ref(false);
+const activeDetailIndex = ref<number>(-1);
+
+const hasCustomerDetail = computed(() => !!(form.value.cusAlamat || form.value.cusTelp));
+
+// ── Subtotal per baris (setelah disc % per item) & Subtotal Bruto ─────
+const rowSubtotal = (d: PenjualanDetail) => {
+  const qty = Number(d.qty) || 0;
+  const harga = Number(d.harga) || 0;
+  const discPr = Number(d.discPr) || 0;
+  const total = qty * harga;
+  const nilaiDisc = (total * discPr) / 100;
+  return total - nilaiDisc;
 };
 
-const showPendingModal = ref(false);
-const pendingList = ref<any[]>([]);
-const pendingLoading = ref(false);
+const subtotalBruto = computed(() => {
+  return form.value.detail.reduce((sum, d) => sum + rowSubtotal(d), 0);
+});
 
-const handlePendingTransaksi = async () => {
-  if (listCart.value.length === 0) {
-    // Swal.fire("Peringatan", "Keranjang belanja masih kosong!", "warning");
-    return;
-  }
+// ── Total Qty & Total Item (kotak info di bawah grid) ────
+const totalQty = computed(() => {
+  return form.value.detail.reduce((sum, d) => sum + (Number(d.qty) || 0), 0);
+});
+const totalBaris = computed(() => form.value.detail.length);
 
-  try {
-    const payload = {
-      header: {
-        tanggal: form.value.tanggal,
-        cusKode: form.value.cusKode,
-        amount: grandTotalNetto.value, // Sesuaikan variabel total belanja Anda
-      },
-      details: listCart.value
-    };
+// ── Diskon Faktur: % dan Rp DIJUMLAHKAN ──────
+const totalDiskonFaktur = computed(() => {
+  const bruto = subtotalBruto.value;
+  const dariPersen = Math.round((bruto * (form.value.discFakturPr || 0)) / 100);
+  const dariNominal = Number(form.value.discFaktur) || 0;
+  return dariPersen + dariNominal;
+});
 
-    const res = await penjualanApi.savePending(payload);
-    if (res.success) {
-      // 1. Reset Form & Keranjang ke default (Kembali ke Umum)
-      listCart.value = [];
-      form.value.cusKode = "0000000001";
-      form.value.cusNama = "umum";
-      
-      // 2. Refresh nomor nota baru
-      if (typeof fetchInitData === "function") fetchInitData();
+const calcTotal = () => {
+  const bruto = subtotalBruto.value;
+  const totalDiskon = totalDiskonFaktur.value;
+  const setelahDiskonFaktur = bruto - totalDiskon;
 
-      // Swal.fire("Berhasil", "Transaksi berhasil ditunda (Pending)", "success");
+  if (form.value.isTax > 0) {
+    if (form.value.isTax === 2) {
+      // Exclude Pajak
+      form.value.taxAmount = Math.round((setelahDiskonFaktur * 11) / 100);
+      form.value.amount = setelahDiskonFaktur + form.value.taxAmount;
+    } else {
+      // Include Pajak
+      form.value.taxAmount = Math.round((setelahDiskonFaktur * 11) / 111);
+      form.value.amount = setelahDiskonFaktur;
     }
-  } catch (err: any) {
-    // Swal.fire("Error", err.message, "error");
+  } else {
+    form.value.taxAmount = 0;
+    form.value.amount = setelahDiskonFaktur;
   }
 };
 
-// FUNGSI 2: MEMBUKA LIST PENDING
-const openPendingList = async () => {
-  showPendingModal.value = true;
-  pendingLoading.value = true;
+const loadSearchOptions = async () => {
+  customerLoading.value = true;
+  barangLoading.value = true;
   try {
-    pendingList.value = await penjualanApi.getPendingList();
-  } catch {
-    pendingList.value = [];
+    const [resCustomer, resBarang] = await Promise.all([
+      penjualanFormApi.getCustomer(""),
+      penjualanFormApi.getBarang(""),
+    ]);
+    customerOptions.value = resCustomer || [];
+    barangOptions.value = resBarang || [];
+  } catch (e) {
+    console.error("Gagal memuat opsi pencarian:", e);
   } finally {
-    pendingLoading.value = false;
+    customerLoading.value = false;
+    barangLoading.value = false;
   }
 };
 
-// FUNGSI 3: MENGAMBIL NOTA PENDING KE LAYAR KASIR
-const handleTakePending = async (item: any) => {
+const searchCustomer = async (query: string) => {
+  customerLoading.value = true;
   try {
-    // Jika kasir sedang melayani orang lain, tanyakan dulu atau cegah agar tidak tertimpa
-    if (listCart.value.length > 0) {
-      // const confirm = await Swal.fire({ title: 'Konfirmasi', text: 'Keranjang aktif tidak kosong. Ingin menimpa dengan data pending?', icon: 'question', showCancelButton: true });
-      // if (!confirm.isConfirmed) return;
-    }
-
-    const dataRestored = await penjualanApi.takePending(item.NO_PENDING);
-    
-    // Kembalikan data customer dan item belanja ke layar
-    form.value.cusKode = dataRestored.header.pen_cus_kode;
-    form.value.cusNama = item.CUSTOMER || "umum";
-    
-    // Kembalikan isi keranjang belanja
-    listCart.value = dataRestored.details;
-
-    // Tutup modal
-    showPendingModal.value = false;
-    // Swal.fire("Selesai", "Data pending berhasil dimuat kembali", "success");
-  } catch (err: any) {
-    // Swal.fire("Gagal", err.message, "error");
-  }
-};
-
-const validateCustomer = () => {
-  if (!form.value.cusKode || form.value.cusKode.trim() === "") {
-    form.value.cusKode = "0000000001";
-  }
-};
-
-const handleGlobalKeyDown = (event: KeyboardEvent) => {
-  // Mendeteksi tombol F2
-  if (event.key === "F2" || event.code === "KeyF2" || event.keyCode === 112) {
-    // SANGAT PENTING: matikan fungsi bawaan browser terlebih dahulu!
-    event.preventDefault(); 
-    event.stopPropagation();
-    
-    // Panggil fungsi membuka modal barang
-    openBarangModal();
+    customerOptions.value = await penjualanFormApi.getCustomer(query || "");
+  } catch {
+    /* silent */
+  } finally {
+    customerLoading.value = false;
   }
 };
 
 const searchBarang = async (query: string) => {
   barangLoading.value = true;
   try {
-    barangOptions.value = await returFormApi.getBarang(query || "");
-  } catch { /* silent */ } finally { barangLoading.value = false; }
-};
-
-const form = ref({
-  notaNomor: "Otomatis...",
-  tanggal: new Date().toISOString().substring(0, 10),
-  cusKode: "0000000001", // Default Umum / Non-Member
-  cusNama: "Umum",
-  
-  // Metode Pembayaran Lengkap
-  ongkir: 0,
-  cash: 0,
-  voucher: 0,
-  noVoucher: "",
-  card: 0,
-  noCard: "",
-  bankCard: "",
-  piutang: 0
-});
-
-const barcodeInput = ref("");
-const listCart = ref<any[]>([]);
-const isSaving = ref(false);
-const showBarangModal = ref(false);
-const barangOptions = ref<any[]>([]);
-const barangLoading = ref(false);
-const showCustomerModal = ref(false);
-const customerOptions = ref<any[]>([]);
-const customerLoading = ref(false); 
-    
-const refBarcode = ref<HTMLInputElement | null>(null);
-
-  const loadCustomerOptions = async () => {
-  customerLoading.value = true;
-  try {
-    customerOptions.value = await penjualanApi.getCustomer("");
-  } catch (e) {
-    console.error("Gagal memuat data customer:", e);
+    barangOptions.value = await penjualanFormApi.getBarang(query || "");
+  } catch {
+    /* silent */
   } finally {
-    customerLoading.value = false;
+    barangLoading.value = false;
   }
 };
 
-// Fungsi pencarian secara dinamis saat user mengetik di modal
-const searchCustomer = async (query: string) => {
-  customerLoading.value = true;
-  try {
-    customerOptions.value = await penjualanApi.getCustomer(query || "");
-  } catch { /* silent */ } finally { customerLoading.value = false; }
+const recalcDateline = () => {
+  const top = Number(form.value.cusTop) || 0;
+  if (!top || !form.value.tanggal) return;
+  const base = new Date(form.value.tanggal);
+  if (isNaN(base.getTime())) return;
+  base.setDate(base.getDate() + top);
+  form.value.dateline = base.toISOString().slice(0, 10);
 };
 
-// Event saat salah satu customer dipilih dari modal
 const selectCustomer = (cus: any) => {
   if (!cus) return;
-  form.value.cusKode = cus.kode;
-  form.value.cusNama = cus.nama; // Jika Anda menyimpan nama customer di form state
+  form.value.cusKode = cus.kode || cus.Kode || cus.cusKode || "";
+  form.value.cusNama = cus.nama || cus.Nama || cus.cusNama || "";
+  form.value.cusAlamat = cus.alamat || cus.Alamat || "";
+  form.value.cusTelp = cus.telp || cus.Telp || "";
+  form.value.cusTop = Number(cus.top ?? cus.Top ?? cus.cusTop ?? 0);
   showCustomerModal.value = false;
+  recalcDateline();
 };
 
-// Jalankan fungsi load data awal di dalam onMounted
-onMounted(() => {
-  // ... load data lainnya ...
-  loadCustomerOptions();
-});
-
-onMounted(async () => {
-  window.addEventListener("keydown", handleGlobalKeyDown);
-  
-  try {
-    const init = await penjualanApi.getInitData();
-    form.value.notaNomor = init.notaOtomatis;
-  } catch {
-    toast.error("Gagal memuat nomor nota otomatis.");
-  }
-  focusBarcode();
-});
-
-onUnmounted(() => {
-  window.removeEventListener("keydown", handleGlobalKeyDown);
-});
-
-const focusBarcode = () => {
-  nextTick(() => { refBarcode.value?.focus(); });
+const onTanggalChange = () => {
+  recalcDateline();
 };
 
-watch(() => showBarangModal.value, (isOpen) => {
-  if (isOpen) {
-    // nextTick bertugas menunggu sampai HTML modal dirender sempurna oleh Vue
-    nextTick(() => {
-      // Mencari elemen inputan teks pencarian yang ada di dalam SearchModal
-      const inputCari = document.querySelector(
-        ".v-dialog input[type='text'], .v-card input, input[placeholder*='Cari kode']"
-      ) as HTMLInputElement;
-
-      if (inputCari) {
-        inputCari.focus();  // Kursor langsung aktif berkedip di kotak pencarian
-        inputCari.select(); // Memblok teks lama (jika ada) supaya siap ditimpa ketikan baru
-      }
-    });
-  }
-});
-watch(tipeHargaAktif, (tingkatBaru) => {
-  if (!listCart.value || listCart.value.length === 0) return;
-
-  // Iterasi setiap item yang ada di keranjang kasir
-  listCart.value.forEach((item: any) => {
-    // 🔴 PERBAIKAN: Gunakan item.brgKode sesuai dengan template tabel kasir Anda
-    const kodeCari = item.brgKode; 
-
-    // Cari data master barang yang cocok berdasarkan KODE BARANG
-    const dataAsli = barangOptions.value.find((b: any) => {
-      const kodeMaster = b.brg_kode || b.brgKode || b.kode || b.id;
-      return kodeMaster === kodeCari;
-    });
-    
-    if (dataAsli) {
-      // Ambil harga yang valid untuk barang ini berdasarkan tingkat harga yang baru dipilih
-      const hargaBaru = dapatkanHargaValid(dataAsli, tingkatBaru);
-      
-      // Update harga dan hitung ulang baris barang tersebut
-      item.harga = hargaBaru;
-      
-      // Sesuaikan rumus dengan properti diskon Anda (item.discRp atau item.potonganRp)
-      const diskon = Number(item.discRp || 0);
-      item.subtotal = (Number(item.qty) * hargaBaru) - diskon;
-    }
-  });
-  
-  
-  
-  toast.success(`Tingkat harga dialihkan ke: ${tingkatBaru.toUpperCase()}`);
-});
-
-const handleBarcodeScan = async () => {
-  const code = barcodeInput.value.trim();
-  if (!code) return;
-
-  try {
-    const barang = await returFormApi.getBarang(code);
-    if (barang && barang.length > 0) {
-      const match = barang.find((b: any) => b.brg_kode === code || b.brg_barcode === code) || barang[0];
-      addToCart(match);
-    } else {
-      toast.warning(`Barang dengan barcode/kode "${code}" tidak ditemukan.`);
-    }
-  } catch (e) {
-    toast.error("Gagal memproses barcode.");
-  } finally {
-    barcodeInput.value = "";
-    focusBarcode();
-  }
+const openSearchBarang = (index: number) => {
+  activeDetailIndex.value = index;
+  showBarangModal.value = true;
 };
 
-const addToCart = (barang: any) => {
-  const bKode = barang.brg_kode || barang.KODE || barang.kode;
-  const bNama = barang.brg_nama || barang.NAMA || barang.nama;
-  const hargaFinal = dapatkanHargaValid(barang, tipeHargaAktif.value);
-
-  const bHarga = hargaFinal ; //Number(barang.brg_hargajual || barang.HARGA || barang.harga || 0);
-
-  const existingItem = listCart.value.find(item => item.brgKode === Number(bKode));
-
-  if (existingItem) {
-    existingItem.qty += 1;
-    calculateRow(existingItem);
-  } else {
-    const newItem = {
-      brgKode: Number(bKode),
-      barangNama: bNama,
-      harga: bHarga,
-      hargaKasir: bHarga,
-      qty: 1,
-      discPr: 0,
-      discRp: 0,
-      subtotal: bHarga
-    };
-    listCart.value.push(newItem);
-  }
-  focusBarcode();
-};
-
-const calculateRow = (row: any) => {
-  const gross = row.harga * row.qty;
-  row.subtotal = gross - Number(row.discRp * row.qty|| 0);
-};
-
-const removeItem = (idx: number) => {
-  listCart.value.splice(idx, 1);
-  focusBarcode();
-};
-
-// ── PERHITUNGAN NETTO & KEMBALIAN ──────────────────
-const totalBelanja = computed(() => {
-  return listCart.value.reduce((acc, row) => acc + Number(row.subtotal || 0), 0);
-});
-
-const grandTotalNetto = computed(() => {
-  return totalBelanja.value + Number(form.value.ongkir || 0);
-});
-
-const totalBayarMasyarakat = computed(() => {
-  return (
-    Number(form.value.cash || 0) +
-    Number(form.value.voucher || 0) +
-    Number(form.value.card || 0) +
-    Number(form.value.piutang || 0)
-  );
-});
-
-const uangKembalian = computed(() => {
-  const kembali = totalBayarMasyarakat.value - grandTotalNetto.value;
-  return kembali < 0 ? 0 : kembali;
-});
-
-const openBarangModal = async () => {
-  try {
+const openAddBarang = () => {
+  const last = form.value.detail[form.value.detail.length - 1];
+  if (last && !last.brgNama) {
+    activeDetailIndex.value = form.value.detail.length - 1;
     showBarangModal.value = true;
-    const res = await returFormApi.getBarang(""); 
-    barangOptions.value = res || [];
-  } catch (error) {
-    toast.error("Gagal mengambil daftar barang.");
+    return;
   }
+
+  form.value.detail.push({
+    no: form.value.detail.length + 1,
+    brgKode: 0,
+    brgNama: "",
+    barcode: "",
+    satuan: "",
+    qty: 1,
+    harga: 0,
+    discPr: 0,
+    keterangan: "",
+    isiCrt: 1,
+    isiLsn: 1,
+  });
+
+  activeDetailIndex.value = form.value.detail.length - 1;
+  showBarangModal.value = true;
 };
 
-const selectBarang = (b: any) => {
-  addToCart(b);
+const selectBarang = (brg: any) => {
+  if (!brg || activeDetailIndex.value < 0) return;
+  const idx = activeDetailIndex.value;
+  const d = form.value.detail[idx];
+  if (d) {
+    d.brgKode = brg.kode || brg.Kode || brg.brgKode || "";
+    d.brgNama = brg.nama || brg.Nama || brg.brgNama || "";
+    d.barcode = brg.barcode || brg.Barcode || "";
+    d.satuan = brg.satuan || brg.Satuan || "";
+    d.harga = Number(brg.hrgJual ?? brg.hrgBeli ?? 0);
+    d.discPr = 0;
+    d.isiCrt = brg.isiCrt || 1;
+    d.isiLsn = brg.isiLsn || 1;
+  }
   showBarangModal.value = false;
+  activeDetailIndex.value = -1;
+  calcTotal();
 };
 
-const handleSave = async () => {
-  if (listCart.value.length === 0) {
-    toast.warning("Keranjang belanja kasir masih kosong!");
-    return;
+const onBarangModalClose = () => {
+  const idx = activeDetailIndex.value;
+  if (idx >= 0) {
+    const d = form.value.detail[idx];
+    if (d && !d.brgNama) {
+      form.value.detail.splice(idx, 1);
+      form.value.detail.forEach((row, i) => (row.no = i + 1));
+    }
   }
-  
-  if (totalBayarMasyarakat.value < grandTotalNetto.value) {
-    toast.warning("Total pembayaran kurang dari Grand Total Netto!");
+  activeDetailIndex.value = -1;
+};
+
+watch(showBarangModal, (val) => {
+  if (!val) onBarangModalClose();
+});
+
+const removeRow = (index: number) => {
+  form.value.detail.splice(index, 1);
+  form.value.detail.forEach((d, i) => (d.no = i + 1));
+  calcTotal();
+};
+
+const loadData = async () => {
+  const nomor = route.params.nomor as string;
+  if (!nomor) {
+    form.value.isEdit = false;
     return;
   }
 
-  isSaving.value = true;
+  isLoading.value = true;
   try {
-    const payload = {
-      header: {
-        tanggal: form.value.tanggal,
-        cusKode: form.value.cusKode,
-        amount: grandTotalNetto.value,
-        ongkir: form.value.ongkir,
-        bayar: form.value.cash,
-        voucher: form.value.voucher,
-        noVoucher: form.value.noVoucher,
-        card: form.value.card,
-        noCard: form.value.noCard,
-        bankCard: form.value.bankCard,
-        piutang: form.value.piutang,
-        kembali: uangKembalian.value
-      },
-      details: listCart.value
-    };
-
-    await penjualanApi.saveData(payload);
-    toast.success("Transaksi Kasir Berhasil Disimpan!");
-    
-    // Reset Form
-    listCart.value = [];
-    form.value.ongkir = 0;
-    form.value.cash = 0;
-    form.value.voucher = 0;
-    form.value.noVoucher = "";
-    form.value.card = 0;
-    form.value.noCard = "";
-    form.value.bankCard = "";
-    form.value.piutang = 0;
-    form.value.cusKode = "0000000001";
-    form.value.cusNama = "umum";
-    
-    const init = await penjualanApi.getInitData();
-    form.value.notaNomor = init.notaOtomatis;
+    form.value.isEdit = true;
+    const res = await penjualanFormApi.getDetailForm(decodeURIComponent(nomor));
+    Object.assign(form.value, res);
+    calcTotal();
   } catch (e: any) {
-    toast.error(e.response?.data?.message || "Gagal menyimpan transaksi.");
+    toast.error(e.response?.data?.message || "Gagal mengambil data penjualan.");
+    router.push({ name: "penjualanBrowse" });
+  } finally {
+    isLoading.value = false;
+  }
+};
+
+const resetForm = () => {
+  form.value = emptyForm();
+  router.replace({ name: "penjualanCreate" }).catch(() => {});
+};
+
+const validateSave = (): boolean => {
+  if (!form.value.cusKode) {
+    toast.warning("Customer harus dipilih.");
+    return false;
+  }
+  if (form.value.detail.length === 0) {
+    toast.warning("Detail barang tidak boleh kosong.");
+    return false;
+  }
+  for (const d of form.value.detail) {
+    if (!d.brgNama) {
+      toast.warning("Ada item barang yang belum dipilih.");
+      return false;
+    }
+    if ((d.qty || 0) <= 0) {
+      toast.warning(`Qty untuk ${d.brgNama} harus lebih dari 0.`);
+      return false;
+    }
+  }
+  return true;
+};
+
+const onValidateSave = () => {
+  if (!validateSave()) return;
+  saveMode.value = "normal";
+  showSaveDialog.value = true;
+};
+
+const onValidateSaveAndNew = () => {
+  if (!validateSave()) return;
+  saveMode.value = "new";
+  showSaveDialog.value = true;
+};
+
+const confirmSave = async () => {
+  if (isSaving.value || isSavingNew.value) return;
+  const isNewMode = saveMode.value === "new";
+  isNewMode ? (isSavingNew.value = true) : (isSaving.value = true);
+  
+  try {
+    const res = await penjualanFormApi.save(form.value);
+    toast.success("Penjualan berhasil disimpan.");
+    savedNomor.value = res?.nomor || res?.data?.nomor || form.value.nomor;
+    showSaveDialog.value = false;
+  
+    if (isNewMode) {
+      resetForm();
+      toast.info(`Penjualan ${savedNomor.value} tersimpan. Form siap untuk entri baru.`);
+    } else {
+      // Langsung kembali ke browse dan tutup tab form
+      const targetPath = route.path;
+      router.push({ name: "penjualanBrowse" });
+       await nextTick();
+    tabsStore.closeTab(targetPath);
+
+    }
+   
+  } catch (e: any) {
+    toast.error(e.response?.data?.message || "Gagal menyimpan penjualan.");
   } finally {
     isSaving.value = false;
-    focusBarcode();
+    isSavingNew.value = false;
   }
 };
 
-const fmtCurrency = (v: number) => new Intl.NumberFormat("id-ID").format(v);
+const confirmCancel = () => {
+  showCancelDialog.value = false;
+  router.push({ name: "penjualanBrowse" });
+};
+
+const confirmClose = async () => {
+  showCloseDialog.value = false;
+  const targetPath = route.path; // ✅ Ambil path halaman form aktif saat ini
+  router.push({ name: "penjualanBrowse" }); // Pindah ke halaman list/browse
+  await nextTick();
+  tabsStore.closeTab(targetPath); // ✅ Tutup tab berdasarkan path form tersebut
+};
+
+onMounted(() => {
+  loadData();
+  loadSearchOptions();
+});
+
+const fmtCurrency = (v: number) =>
+  new Intl.NumberFormat("id-ID", { minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(v || 0);
+const fmtNumber = (v: number) => new Intl.NumberFormat("id-ID").format(v || 0);
 </script>
 
 <template>
-  <div class="pos-wrap">
-    <div class="action-bar mb-2">
-      <button class="btn-back" type="button" @click="router.push('/transaksi/penjualan')">
-        <IconArrowLeft :size="16" /> Kembali ke List
-      </button>
-      <span class="page-title">Mesin Kasir / POS (Multi-Payment)</span>
-      <button
-        class="btn-back"
-        type="button"
-        title="Reload halaman (kalau data barang/customer gagal kemuat)"
-        @click="() => window.location.reload()"
+  <BaseForm
+    :title="isEdit ? 'Ubah Penjualan (SO)' : 'Tambah Penjualan Baru'"
+    :icon="IconShoppingCart"
+    :menu-id="MENU_ID"
+    :is-loading="isLoading"
+    :is-saving="isSaving"
+    :is-edit-mode="isEdit"
+    v-model:show-save-dialog="showSaveDialog"
+    v-model:show-cancel-dialog="showCancelDialog"
+    v-model:show-close-dialog="showCloseDialog"
+    @validate-save="onValidateSave"
+    @confirm-save="confirmSave"
+    @confirm-cancel="confirmCancel"
+    @confirm-close="confirmClose"
+  >
+    <template #extra-actions v-if="!isEdit">
+      <v-btn
+        size="small"
+        variant="outlined"
+        color="primary"
+        :loading="isSavingNew"
+        @click="onValidateSaveAndNew"
       >
-        <IconReload :size="16" /> Reload
-      </button>
-    </div>
-    
+        Simpan &amp; Baru
+      </v-btn>
+    </template>
 
-    <div class="grid grid-cols-3 gap-3 mb-2">
-      <div class="display-total">
-        <div class="lbl">GRAND TOTAL NETTO</div>
-        <div class="val">Rp {{ fmtCurrency(grandTotalNetto) }}</div>
-      </div>
-
-      <div class="panel-info col-span-2">
-        <div class="grid grid-cols-2 gap-3">
+    <div class="form-header-grid">
+      <div class="header-fields">
+        <div class="grid-fields-container">
           <div class="f-row">
-            <label class="f-lbl">No. Nota</label>
-            <input type="text" :value="form.notaNomor" class="f-inp readonly-bg" readonly />
+            <label class="f-lbl">No. SO</label>
+            <input type="text" v-model="form.nomor" class="f-inp-native readonly-bg" placeholder="[ OTOMATIS ]" readonly />
           </div>
+
           <div class="f-row">
-            <label class="f-lbl">Tanggal</label>
-            <input type="date" v-model="form.tanggal" class="f-inp" />
+            <label class="f-lbl">Customer</label>
+            <div class="search-group" @click="showCustomerModal = true">
+              <input type="text" :value="form.cusKode" class="f-inp-native w-30 readonly-bg" readonly placeholder="Kode" />
+              <input type="text" :value="form.cusNama" class="f-inp-native w-70 readonly-bg" readonly placeholder="Pilih Customer..." />
+              <button class="btn-search" type="button" :disabled="isEdit" @click.stop="showCustomerModal = true">
+                <IconSearch :size="14" />
+              </button>
+            </div>
+          </div>
+
+          <div class="f-row">
+            <label class="f-lbl">Tanggal SO</label>
+            <input type="date" v-model="form.tanggal" class="f-inp-native" :disabled="isEdit" @change="onTanggalChange" />
+          </div>
+
+          <div class="f-row">
+            <label class="f-lbl">Tanggal Jt. Tempo</label>
+            <input type="date" v-model="form.dateline" class="f-inp-native" />
+          </div>
+
+          <div class="f-row">
+            <label class="f-lbl">Nama Pemesan</label>
+            <input type="text" v-model="form.pemesan" class="f-inp-native" placeholder="Masukkan nama pemesan..." />
+          </div>
+
+          <div class="f-row">
+            <label class="f-lbl">Opsi Pajak</label>
+            <select v-model.number="form.isTax" class="f-inp-native select-native" @change="calcTotal">
+              <option :value="0">Tanpa Pajak</option>
+              <option :value="2">Pajak (PPN)</option>
+            </select>
           </div>
         </div>
-        
-        <div class="barcode-customer-row mt-3">
-          <div class="input-inline-group">
-            <label class="lbl-inline text-primary">SCAN BARCODE</label>
-            <div class="search-combine">
-              <input 
-                ref="refBarcode"
-                type="text" 
-                v-model="barcodeInput" 
-                @keydown.enter="handleBarcodeScan"
-                class="f-inp barcode-field" 
-                placeholder="Scan Barcode / Tekan ENTER..." 
+
+        <div class="supplier-info-card" v-if="hasCustomerDetail">
+          <div class="supplier-info-row" v-if="form.cusAlamat">
+            <IconMapPin :size="13" class="supplier-info-icon" />
+            <span>{{ form.cusAlamat }}</span>
+          </div>
+          <div class="supplier-info-row" v-if="form.cusTelp">
+            <IconPhone :size="13" class="supplier-info-icon" />
+            <span>{{ form.cusTelp }}</span>
+          </div>
+        </div>
+
+        <div class="f-row align-start mt-1">
+          <label class="f-lbl mt-1">Catatan / Memo</label>
+          <textarea v-model="form.memo" class="f-txa-native" rows="2" placeholder="Catatan / Memo Faktur..."></textarea>
+        </div>
+      </div>
+
+      <div class="header-summary">
+        <div class="summary-box">
+          <div class="summary-lbl">GRAND TOTAL SO</div>
+          <div class="summary-val" :class="form.amount < 0 ? 'val-red-dark-bg' : 'val-green-dark-bg'">
+            Rp {{ fmtCurrency(form.amount) }}
+          </div>
+        </div>
+        <div class="summary-sub-rows">
+          <div class="sub-total-item">
+            <span>Subtotal Bruto :</span>
+            <span class="font-weight-bold" :class="subtotalBruto < 0 ? 'val-red' : 'val-green'">
+              Rp {{ fmtCurrency(subtotalBruto) }}
+            </span>
+          </div>
+
+          <div class="sub-total-item disc-row">
+            <span>Diskon Faktur :</span>
+            <div class="disc-inputs">
+              <input
+                type="number"
+                v-model.number="form.discFakturPr"
+                class="f-inp-native disc-pr-inp"
+                min="0"
+                max="100"
+                @input="calcTotal"
               />
-              <button class="btn-search-compact" type="button" @click="openBarangModal">
-                <IconSearch :size="14" /> F2
-              </button>
+              <span class="disc-unit">%</span>
+              <span class="disc-plus">+</span>
+              <span class="disc-unit">Rp</span>
+              <input
+                type="number"
+                v-model.number="form.discFaktur"
+                class="f-inp-native disc-nom-inp"
+                min="0"
+                @input="calcTotal"
+              />
             </div>
           </div>
+          <div class="sub-total-item">
+            <span>= Total Diskon :</span>
+            <span class="font-weight-bold text-red">- Rp {{ fmtCurrency(totalDiskonFaktur) }}</span>
+          </div>
 
-          <div class="f-row">
-  <span class="text-green-600 font-bold mr-2">Customer</span>
-  
-  
-  <div class="search-group active-barcode-style" @click="showCustomerModal = true">
-    <input 
-      type="text" 
-      :value="form.cusKode" 
-      class="f-inp-custom w-30" 
-      readonly 
-      placeholder="Kode" 
-    />
-    <input 
-      type="text" 
-      :value="form.cusNama" 
-      class="f-inp-custom w-70 ml-1" 
-      readonly 
-      placeholder="Nama Customer..." 
-    />
-    <button class="btn-search-icon" type="button" @click.stop="showCustomerModal = true">
-      <IconSearch :size="14" />
-    </button>
-  </div>
-</div>
+          <div class="sub-total-item" v-if="form.isTax > 0">
+            <span>Nilai PPN Pajak :</span>
+            <span class="font-weight-bold text-orange-darken-4">Rp {{ fmtCurrency(form.taxAmount) }}</span>
+          </div>
         </div>
-
       </div>
     </div>
 
-    <div class="pos-main-content">
-      
-      <div class="table-container">
-          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; gap: 16px; width: 100%;">
-            <div style="display: flex; gap: 8px;">
-              <button type="button" class="btn-pending" @click="handlePendingTransaksi">
-                <span>F8 - Pending</span>
-              </button>
-              <button type="button" class="btn-ambil-pending" @click="openPendingList">
-                <span>F9 - Ambil Pending</span>
-              </button>
-            </div>
+    <div class="detail-section mt-4">
+      <div class="d-flex align-center justify-between mb-2">
+        <div class="section-title">Detail Item Barang / Jasa</div>
+        <v-btn size="x-small" color="green-darken-3" class="font-weight-bold text-white" @click="openAddBarang">
+          <IconPlus :size="12" class="mr-1" /> Tambah Barang
+        </v-btn>
+      </div>
 
-            <div style="display: flex; align-items: center; gap: 8px;">
-              <label style="font-size: 13px; font-weight: bold; color: #374151; white-space: nowrap; margin: 0;">
-                Tingkat Harga:
-              </label>
-              <select 
-                v-model="tipeHargaAktif" 
-                style="height: 34px; min-width: 180px; border: 1px solid #d1d5db; border-radius: 6px; padding: 0 24px 0 8px; font-size: 13px; background-color: #fff; font-weight: bold; color: #1f2937; cursor: pointer; outline: none;"
-              >
-                <option v-for="opsi in opsiTingkatHarga" :key="opsi.value" :value="opsi.value">
-                  {{ opsi.title }}
-                </option>
-              </select>
-            </div>
-          
-        </div>
-        
-        <table class="pos-table">
+      <div class="detail-table-wrap">
+        <table class="detail-table">
           <thead>
             <tr>
-              <th style="width: 40px;" class="tc">No</th>
-              <th style="width: 110px;">Kode Barang</th>
-              <th>Nama Item Barang</th>
-              <th style="width: 100px;" class="tr">Harga</th>
-              <th style="width: 65px;" class="tc">Qty</th>
-              <th style="width: 90px;" class="tr">Pot. Rp / item</th>
-              <th style="width: 120px;" class="tr">Subtotal</th>
-              <th style="width: 45px;" class="tc">Aksi</th>
+              <th class="tc" style="width: 40px;">NO</th>
+              <th style="width: 130px;">BARCODE / KODE</th>
+              <th style="min-width: 180px;">NAMA ITEM BARANG</th>
+              <th style="width: 80px;" class="tc">SATUAN</th>
+              <th style="width: 70px;" class="tr">QTY</th>
+              <th style="width: 120px;" class="tr">HARGA JUAL</th>
+              <th style="width: 70px;" class="tr">DISC (%)</th>
+              <th style="min-width: 150px;">KETERANGAN</th>
+              <th style="width: 130px;" class="tr">SUBTOTAL</th>
+              <th class="tc" style="width: 50px;">AKSI</th>
             </tr>
           </thead>
           <tbody>
-            <tr v-for="(item, idx) in listCart" :key="idx">
-              <td class="tc">{{ idx + 1 }}</td>
-              <td class="mono">{{ item.brgKode }}</td>
-              <td><span class="font-weight-bold">{{ item.barangNama }}</span></td>
-              <td class="tr">Rp {{ fmtCurrency(item.harga) }}</td>
-              <td class="tc">
-                <input type="number" v-model.number="item.qty" @input="calculateRow(item)" class="cell-input tc w-full" min="1" />
+            <tr v-for="(row, idx) in form.detail" :key="idx">
+              <td class="tc font-weight-bold color-grey">{{ idx + 1 }}</td>
+              <td>
+                <div class="cell-search-group" @click="openSearchBarang(idx)">
+                  <input type="text" :value="row.brgKode || row.barcode" class="cell-inp readonly-bg" readonly placeholder="Klik cari..." />
+                  <button class="cell-btn-search" type="button" @click.stop="openSearchBarang(idx)">
+                    <IconSearch :size="12" />
+                  </button>
+                </div>
               </td>
-              <td class="tr">
-                <input type="number" v-model.number="item.discRp" @input="calculateRow(item)" class="cell-input tr w-full" placeholder="0" />
+              <td>
+                <input type="text" v-model="row.brgNama" class="cell-inp font-weight-bold text-grey-darken-4" placeholder="Nama/Deskripsi Item..." />
               </td>
-              <td class="tr font-weight-bold text-blue">Rp {{ fmtCurrency(item.subtotal) }}</td>
+              <td>
+                <input type="text" v-model="row.satuan" class="cell-inp tc readonly-bg" readonly placeholder="Pcs/Box" />
+              </td>
+              <td>
+                <input type="number" v-model.number="row.qty" class="cell-inp tr text-blue font-weight-bold" @input="calcTotal" min="1" />
+              </td>
+              <td>
+                <div class="cell-currency-wrap">
+                  <span class="cell-currency-prefix">Rp</span>
+                  <input type="number" v-model.number="row.harga" class="cell-inp cell-inp-currency tr text-green-darken-4 font-weight-bold" @input="calcTotal" placeholder="0" />
+                </div>
+              </td>
+              <td>
+                <input type="number" v-model.number="row.discPr" class="cell-inp tr text-red font-weight-bold" @input="calcTotal" min="0" max="100" />
+              </td>
+              <td>
+                <input type="text" v-model="row.keterangan" class="cell-inp text-grey-darken-2" placeholder="Catatan item..." />
+              </td>
+              <td class="tr pr-2 font-weight-bold" :class="rowSubtotal(row) < 0 ? 'val-red' : 'val-green'">
+                Rp {{ fmtCurrency(rowSubtotal(row)) }}
+              </td>
               <td class="tc">
-                <button class="btn-del" @click="removeItem(idx)"><IconTrash :size="14" /></button>
+                <button class="cell-btn-delete" type="button" @click="removeRow(idx)">
+                  <IconTrash :size="13" />
+                </button>
               </td>
             </tr>
-            <tr v-if="listCart.length === 0">
-              <td colspan="8" class="tc empty-text">Belum ada item. Silakan scan barcode atau tekan F9.</td>
+            <tr v-if="form.detail.length === 0">
+              <td colspan="10" class="tc pa-4 text-grey style-italic">Belum ada item barang. Silakan klik tombol "Tambah Barang".</td>
             </tr>
           </tbody>
         </table>
       </div>
-      
 
-      <div class="sidebar-payment">
-        <div class="panel-pay-box">
-          
-          <div class="pay-field-group mb-1">
-            <label class="pay-lbl-input text-amber-600">5. ONGKIR (Rp)</label>
-            <input type="number" v-model.number="form.ongkir" class="f-inp pay-field field-ongkir" placeholder="0" />
-          </div>
-
-          <div class="section-title">PEMBAYARAN</div>
-
-          <div class="pay-field-group mb-1">
-            <label class="pay-lbl-input text-emerald-600">1. CASH / TUNAI (Rp)</label>
-            <input type="number" v-model.number="form.cash" class="f-inp pay-field field-cash" placeholder="0" />
-          </div>
-
-          <div class="pay-field-group mb-1">
-            <label class="pay-lbl-input text-blue-600">2. VOUCHER (Rp)</label>
-            <div class="grid grid-cols-3 gap-1">
-              <input type="number" v-model.number="form.voucher" class="f-inp pay-field col-span-1" placeholder="0" />
-              <input type="text" v-model="form.noVoucher" class="f-inp text-xs col-span-2" placeholder="No. Voucher" />
-            </div>
-          </div>
-
-          <div class="pay-field-group mb-1">
-            <label class="pay-lbl-input text-purple-600">3. CARD / DEBIT / KREDIT (Rp)</label>
-            <input type="number" v-model.number="form.card" class="f-inp pay-field mb-1" placeholder="0" />
-            <div class="grid grid-cols-2 gap-1">
-              <input type="text" v-model="form.noCard" class="f-inp text-xs" placeholder="No. Kartu" />
-              <input type="text" v-model="form.bankCard" class="f-inp text-xs" placeholder="Nama Bank" />
-            </div>
-          </div>
-
-          <div class="pay-field-group mb-2">
-            <label class="pay-lbl-input text-red-600">4. PIUTANG / BON (Rp)</label>
-            <input type="number" v-model.number="form.piutang" class="f-inp pay-field field-piutang" placeholder="0" />
-          </div>
-
-          <div class="pay-field-group mt-1">
-            <label class="pay-lbl-input text-slate-700 font-bold">KEMBALIAN</label>
-            <div class="change-display">Rp {{ fmtCurrency(uangKembalian) }}</div>
-          </div>
-      
-          <button class="btn-save-pos-sidebar mt-2" type="button" @click="handleSave" :disabled="isSaving || listCart.length === 0">
-            <IconDeviceFloppy :size="16" /> SIMPAN NOTA (ENTER)
-          </button>
-        </div>
+      <div class="grid-total-bar" v-if="form.detail.length > 0">
+        <span>Total Item: <strong>{{ totalBaris }}</strong></span>
+        <span class="divider">|</span>
+        <span>Total Qty: <strong>{{ fmtNumber(totalQty) }}</strong></span>
+        <span class="divider">|</span>
+        <span>Total Subtotal Bruto: <strong :class="subtotalBruto < 0 ? 'val-red' : 'val-green'">Rp {{ fmtCurrency(subtotalBruto) }}</strong></span>
       </div>
-
     </div>
+
+    <v-dialog v-model="showSaveDialog" max-width="320">
+      <v-card rounded="lg">
+        <v-card-title class="text-subtitle-1 font-weight-bold pa-3 bg-green-darken-4 text-white">Konfirmasi</v-card-title>
+        <v-card-text class="pa-4 text-body-2">
+          {{ saveMode === "new"
+            ? "Simpan penjualan ini dan langsung buka form baru untuk entri berikutnya?"
+            : "Apakah Anda yakin ingin menyimpan transaksi penjualan ini?" }}
+        </v-card-text>
+        <v-card-actions class="pa-2 bg-grey-lighten-4 justify-end">
+          <v-btn size="small" variant="outlined" @click="showSaveDialog = false">Batal</v-btn>
+          <v-btn size="small" color="success" variant="flat" class="px-4" :loading="isSaving || isSavingNew" @click="confirmSave">
+            Ya, Simpan
+          </v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
+
+    <v-dialog v-model="showCancelDialog" max-width="320">
+      <v-card rounded="lg">
+        <v-card-title class="text-subtitle-1 font-weight-bold pa-3 bg-red-darken-4 text-white">Batalkan</v-card-title>
+        <v-card-text class="pa-4 text-body-2">Keluar dari halaman ini? Perubahan yang belum disimpan akan hilang.</v-card-text>
+        <v-card-actions class="pa-2 bg-grey-lighten-4 justify-end">
+          <v-btn size="small" variant="outlined" @click="showCancelDialog = false">Kembali</v-btn>
+          <v-btn size="small" color="error" variant="flat" @click="router.push({ name: 'penjualanBrowse' })">Ya, Keluar</v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
+
+    <SearchModal
+      v-model="showCustomerModal"
+      title="Pilih Customer"
+      :columns="[
+        { key: 'kode', title: 'KODE', width: '100px' },
+        { key: 'nama', title: 'NAMA CUSTOMER' },
+      ]"
+      :items="customerOptions"
+      :loading="customerLoading"
+      :server-search="true"
+      search-placeholder="Cari kode atau nama customer..."
+      :search-keys="['kode', 'nama']"
+      @select="selectCustomer"
+      @search="searchCustomer"
+    />
 
     <SearchModal
       v-model="showBarangModal"
@@ -636,7 +638,7 @@ const fmtCurrency = (v: number) => new Intl.NumberFormat("id-ID").format(v);
       :columns="[
         { key: 'kode', title: 'KODE BARANG', width: '120px' },
         { key: 'nama', title: 'NAMA ITEM BARANG' },
-        { key: 'satuan', title: 'SATUAN', width: '80px', align: 'center' }
+        { key: 'satuan', title: 'SATUAN', width: '80px', align: 'center' },
       ]"
       :items="barangOptions"
       :loading="barangLoading"
@@ -646,233 +648,348 @@ const fmtCurrency = (v: number) => new Intl.NumberFormat("id-ID").format(v);
       @select="selectBarang"
       @search="searchBarang"
     />
-
-    <SearchModal
-  v-model="showCustomerModal"
-  title="Pilih Customer / Member"
-  :columns="[
-    { key: 'kode', title: 'KODE CUSTOMER', width: '130px' },
-    { key: 'nama', title: 'NAMA CUSTOMER' },
-  ]"
-  :items="customerOptions"
-  :loading="customerLoading"
-  :server-search="true"
-  search-placeholder="Cari kode atau nama member..."
-  :search-keys="['kode', 'nama']"
-  @select="selectCustomer"
-  @search="searchCustomer"
-/>
-
-<SearchModal
-  v-model="showPendingModal"
-  title="Daftar Transaksi Dipending (Hold)"
-  :columns="[
-    { key: 'NO_PENDING', title: 'NO. PENDING', width: '200px' },
-    { key: 'TANGGAL', title: 'WAKTU PENDING', width: '180px' },
-    { key: 'CUSTOMER', title: 'CUSTOMER / MEMBER' },
-    { key: 'TOTAL', title: 'TOTAL BELANJA', width: '150px', align: 'right' }
-  ]"
-  :items="pendingList"
-  :loading="pendingLoading"
-  search-placeholder="Cari nomor pending atau customer..."
-  :search-keys="['NO_PENDING', 'CUSTOMER']"
-  @select="handleTakePending"
-/>
-  </div>
+  </BaseForm>
 </template>
 
 <style scoped>
-.pos-wrap { padding: 10px; background: #edf2f7; min-height: 100vh; font-size: 12px; }
-.action-bar { display: flex; align-items: center; gap: 12px; }
-.page-title { font-size: 14px; font-weight: 700; color: #1a202c; }
-.panel-info { background: white; padding: 10px; border-radius: 4px; border: 1px solid #cbd5e1; }
-.f-row { display: flex; align-items: center; gap: 8px; }
-.f-lbl { width: 95px; font-weight: 600; color: #4a5568; }
-.f-inp { flex: 1; padding: 4px 8px; border: 1px solid #cbd5e1; border-radius: 4px; outline: none; }
-.readonly-bg { background-color: #f7fafc; cursor: not-allowed; }
-
-/* Grid khusus Scan Barcode & Customer */
-.barcode-customer-row {
+.form-header-grid {
   display: grid;
-  grid-template-columns: 55% 45%;
-  gap: 12px;
-  align-items: center;
+  grid-template-columns: 1fr 380px;
+  gap: 20px;
+  align-items: start;
 }
 
-.input-inline-group {
+@media (max-width: 960px) {
+  .form-header-grid {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+}
+
+.header-fields {
   display: flex;
-  align-items: center;
+  flex-direction: column;
   gap: 6px;
 }
 
-.lbl-inline {
-  font-weight: bold;
-  font-size: 11px;
-  white-space: nowrap;
-  flex-shrink: 0;
-}
-.input-inline-group:first-child .lbl-inline { width: 90px; }
-.input-inline-group:last-child .lbl-inline { width: 65px; }
-
-.search-combine {
-  display: flex;
-  flex: 1;
-  align-items: stretch;
-  height: 28px;
+.grid-fields-container {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px 16px;
 }
 
-.barcode-field {
-  flex: 1;
-  font-size: 12px;
-  font-weight: bold;
-  background-color: #fffaf0;
-  border-color: #ed8936;
-  border-radius: 4px 0 0 4px !important;
-  padding: 0 8px;
+@media (max-width: 600px) {
+  .grid-fields-container {
+    grid-template-columns: 1fr;
+  }
 }
 
-.btn-search-compact {
-  background: #ed8936;
-  color: white;
-  border: 1px solid #ed8936;
-  border-radius: 0 4px 4px 0;
-  padding: 0 10px;
-  font-size: 11px;
-  font-weight: bold;
-  cursor: pointer;
+.f-row {
   display: flex;
   align-items: center;
-  gap: 2px;
-  white-space: nowrap;
 }
-
-.customer-field {
+.f-lbl {
+  width: 110px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #4b5563;
+  flex-shrink: 0;
+}
+.f-inp-native,
+.f-txa-native {
   flex: 1;
-  font-size: 12px;
-  font-weight: bold;
-  background-color: #f0f0fd;
-  border-color: #8686ef;
-  border-radius: 4px 0 0 4px !important;
-  text-align: center;
-  padding: 0 4px;
+  height: 28px;
+  border: 1px solid #d1d5db;
+  border-radius: 4px;
+  padding: 0 8px;
+  font-size: 11px;
+  outline: none;
+}
+.select-native {
+  background-color: white;
+  cursor: pointer;
+}
+.f-txa-native {
+  height: auto;
+  padding: 4px 8px;
+}
+.f-inp-native:focus,
+.f-txa-native:focus {
+  border-color: #3B5998;
+}
+.readonly-bg {
+  background-color: #f3f4f6;
+  color: #6b7280;
 }
 
-.customer-badge {
+.search-group {
+  display: flex;
+  flex: 1;
+  gap: 4px;
+  cursor: pointer;
+}
+.btn-search {
+  height: 28px;
+  width: 32px;
+  background: #3B5998;
+  color: white;
+  border: none;
+  border-radius: 4px;
   display: flex;
   align-items: center;
   justify-content: center;
-  background-color: #e2e8f0;
-  color: #334155;
-  padding: 0 8px;
-  border-radius: 0 4px 4px 0;
-  font-weight: bold;
-  font-size: 10px;
-  border: 1px solid #cbd5e1;
-  border-left: none;
-  min-width: 55px;
-  white-space: nowrap;
 }
 
-/* Display Total (Kiri, Besar, Rata Kanan) */
-.display-total { 
-  background: #1a202c; 
-  color: #4848bb; 
-  padding: 12px 18px; 
-  border-radius: 4px; 
-  display: flex; 
-  flex-direction: column; 
-  justify-content: center; 
-  text-align: right; 
+.w-30 {
+  width: 30%;
+  flex: none !important;
 }
-.display-total .lbl { font-size: 11px; color: #a0aec0; font-weight: bold; margin-bottom: 2px; }
-.display-total .val { font-size: 36px; font-weight: 900; font-family: monospace; line-height: 1.1; }
+.w-70 {
+  width: 70%;
+}
 
-/* Main layout */
-.pos-main-content { display: flex; gap: 12px; align-items: flex-start; margin-top: 4px; }
-.table-container { flex: 1; background: white; border-radius: 4px; border: 1px solid #cbd5e1; max-height: 500px; overflow-y: auto; }
-.pos-table { width: 100%; border-collapse: collapse; }
-.pos-table th { background: #4a5568; color: white; padding: 6px 8px; font-weight: bold; position: sticky; top: 0; }
-.pos-table td { padding: 5px 8px; border-bottom: 1px solid #e2e8f0; }
-.cell-input { padding: 2px 4px; border: 1px solid #cbd5e1; border-radius: 4px; font-weight: bold; }
-
-/* Sidebar Pembayaran */
-.sidebar-payment { width: 330px; flex-shrink: 0; margin-top: 0px; }
-.panel-pay-box { background: #ffffff; border: 1px solid #cbd5e1; border-top: 4px solid #3182ce; border-radius: 4px; padding: 10px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
-.section-title { font-weight: 800; border-bottom: 2px dashed #e2e8f0; padding-bottom: 2px; margin: 4px 0 6px 0; color: #2d3748; }
-
-.pay-field-group { display: flex; flex-direction: column; gap: 1px; }
-.pay-lbl-input { font-weight: 700; font-size: 11px; }
-.pay-field { font-size: 13px; font-weight: 700; text-align: right; padding: 4px 6px; }
-
-.field-ongkir { background-color: #fffaf0; color: #dd6b20; border-color: #fbd38d; }
-.field-cash { background-color: #f0f0ff; color: #3838a1; border-color: #9a9ae6; font-size: 14px; }
-.field-piutang { background-color: #fff5f5; color: #e53e3e; border-color: #feb2b2; }
-
-.change-display { background: #f7fafc; border: 1px solid #cbd5e1; padding: 6px; font-size: 16px; font-weight: 800; color: #3838a1; text-align: right; border-radius: 4px; font-family: monospace; }
-.btn-save-pos-sidebar { width: 100%; background: #3838a1; color: white; border: none; padding: 8px; font-size: 13px; font-weight: bold; border-radius: 4px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; }
-.btn-save-pos-sidebar:disabled { background: #cbd5e1; color: #94a3b8; cursor: not-allowed; }
-.btn-back { display: flex; align-items: center; gap: 4px; background: white; border: 1px solid #cbd5e1; padding: 4px 8px; border-radius: 4px; cursor: pointer; }
-.btn-del { color: #e53e3e; background: none; border: none; cursor: pointer; }
-.tc { text-align: center; } .tr { text-align: right; } .mono { font-family: monospace; }
-.empty-text { padding: 20px !important; color: #a0aec0; font-style: italic; }
-.active-barcode-style {
+.supplier-info-card {
+  margin-left: 110px;
+  margin-top: -2px;
+  padding: 6px 10px;
+  background: #eef2ff;
+  border: 1px solid #e0e7ff;
+  border-radius: 5px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  animation: fadeInInfo 0.2s ease-in;
+}
+.supplier-info-row {
   display: flex;
   align-items: center;
-  background-color: #fffaf0; /* Warna krem lembut khas scan barcode */
-  border: 1.5px solid #f28e2b; /* Border oranye */
+  gap: 6px;
+  font-size: 10.5px;
+  color: #4b5563;
+  line-height: 1.3;
+}
+.supplier-info-icon {
+  color: #6366f1;
+  flex-shrink: 0;
+}
+@keyframes fadeInInfo {
+  from {
+    opacity: 0;
+    transform: translateY(-2px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@media (max-width: 600px) {
+  .supplier-info-card {
+    margin-left: 0;
+  }
+}
+
+.header-summary {
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  padding: 10px;
+}
+.summary-box {
+  background: #3B5998;
+  color: white;
+  padding: 10px;
   border-radius: 4px;
-  padding: 4px 8px;
-  cursor: pointer;
-  transition: all 0.2s ease;
+  text-align: right;
+}
+.summary-lbl {
+  font-size: 10px;
+  font-weight: 600;
+  opacity: 0.85;
+}
+.summary-val {
+  font-size: 22px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+.summary-sub-rows {
+  margin-top: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 11px;
+}
+.sub-total-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  color: #4b5563;
+  border-bottom: 1px dashed #e5e7eb;
+  padding-bottom: 2px;
 }
 
-.active-barcode-style:hover {
-  background-color: #fff5e6; /* Sedikit lebih gelap saat di-hover */
+.disc-row {
+  align-items: center;
 }
-
-/* Hilangkan border bawaan input asli agar menyatu dengan background grup */
-.f-inp-custom {
-  background: transparent;
-  border: none;
-  outline: none;
-  color: #333;
-  font-weight: 500;
-}
-
-.btn-search-icon {
-  background: transparent;
-  border: none;
-  color: #666;
-  cursor: pointer;
+.disc-inputs {
   display: flex;
   align-items: center;
-  padding-left: 5px;
+  gap: 4px;
 }
-.text-green-font {
-  color: #1616a3; /* Ini kode warna hijau standar (setara text-green-600) */
+.disc-pr-inp {
+  width: 42px;
+  height: 22px;
+  padding: 0 2px;
+  text-align: center;
 }
-.font-bold {
+.disc-nom-inp {
+  width: 80px;
+  height: 22px;
+  padding: 0 4px;
+  text-align: right;
   font-weight: 700;
 }
-.btn-pending {
-  background-color: #6b7280; /* Abu-abu metalik */
-  color: white;
-  padding: 8px 16px;
-  border: none;
-  border-radius: 4px;
-  font-weight: bold;
-  cursor: pointer;
+.disc-unit {
+  font-size: 10px;
+  color: #9ca3af;
 }
-.btn-pending:hover { background-color: #4b5563; }
+.disc-plus {
+  font-size: 10px;
+  color: #d1d5db;
+}
+.text-red {
+  color: #ef4444;
+}
 
-.btn-ambil-pending {
-  background-color: #0284c7; /* Biru langit cerah */
+.section-title {
+  font-size: 11px;
+  font-weight: 700;
+  color: #3B5998;
+  text-transform: uppercase;
+}
+.detail-table-wrap {
+  border: 1px solid #e0e0e0;
+  border-radius: 4px 4px 0 0;
+  overflow-x: auto;
+}
+.detail-table {
+  width: 100%;
+  min-width: 1020px;
+  border-collapse: collapse;
+  font-size: 11px;
+}
+.detail-table thead tr {
+  background: #3B5998;
+}
+.detail-table th {
   color: white;
-  padding: 8px 16px;
-  border: none;
-  border-radius: 4px;
-  font-weight: bold;
+  font-weight: 700;
+  padding: 6px;
+  white-space: nowrap;
+}
+.detail-table td {
+  padding: 3px 4px;
+  border-bottom: 1px solid #f0f0f0;
+  vertical-align: middle;
+}
+.detail-table tbody tr:hover td {
+  background: rgba(46, 46, 125, 0.03);
+}
+
+.cell-inp {
+  width: 100%;
+  height: 24px;
+  border: 1px solid #d1d5db;
+  border-radius: 3px;
+  padding: 0 4px;
+  font-size: 11px;
+  outline: none;
+}
+.cell-inp:focus {
+  border-color: #3B5998;
+}
+
+.cell-search-group {
+  display: flex;
+  gap: 2px;
   cursor: pointer;
 }
-.btn-ambil-pending:hover { background-color: #0369a1; }
+.cell-btn-search {
+  height: 24px;
+  width: 24px;
+  background: #3B5998;
+  color: white;
+  border: none;
+  border-radius: 3px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.cell-btn-delete {
+  color: #ef4444;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 4px;
+}
+
+.grid-total-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: #f3f4f6;
+  border: 1px solid #e0e0e0;
+  border-top: none;
+  border-radius: 0 0 4px 4px;
+  padding: 6px 12px;
+  font-size: 11px;
+  color: #4b5563;
+}
+.grid-total-bar strong {
+  color: #1f2937;
+}
+.grid-total-bar .divider {
+  color: #d1d5db;
+}
+
+.tc {
+  text-align: center;
+}
+.tr {
+  text-align: right;
+}
+
+.val-green { color: #15803d; }
+.val-red { color: #dc2626; }
+
+.val-green-dark-bg { color: #86efac; }
+.val-red-dark-bg { color: #fca5a5; }
+
+.cell-currency-wrap {
+  display: flex;
+  align-items: center;
+  height: 24px;
+  border: 1px solid #d1d5db;
+  border-radius: 3px;
+  overflow: hidden;
+  background: white;
+}
+.cell-currency-wrap:focus-within {
+  border-color: #3B5998;
+}
+.cell-currency-prefix {
+  flex-shrink: 0;
+  padding: 0 4px;
+  font-size: 10px;
+  font-weight: 700;
+  color: #6b7280;
+  background: #f3f4f6;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  border-right: 1px solid #d1d5db;
+}
+.cell-inp-currency {
+  border: none !important;
+  height: 100%;
+}
 </style>

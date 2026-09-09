@@ -11,6 +11,7 @@
 
 const VIEW_STORAGE_KEYS: Record<string, string> = {
   "/transaksi/po": "finance_periode_po",
+  "/transaksi/penjualan": "finance_periode_penjualan",
   "/transaksi/bpb": "inv_periode_bpb",
   "/transaksi/bayarSupplier": "pembayaran_supplier",
   "/transaksi/retur": "finance_periode_retur",

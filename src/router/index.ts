@@ -420,21 +420,35 @@ const router = createRouter({
 	  meta: { layout: "DefaultLayout",
         requiresAuth: true,
         menuId: "33",
-        title: "Ubah Penjualan",
+        title: "Penjualan",
         browseRoute: "penjualanBrowse",}
 	 
 	},
 	{
-	  path: "/transaksi/penjualan/form",
+	  path: "/transaksi/penjualan/create",
 	  name: "penjualanCreate",
 	  component: () => import("@/views/transaksi/penjualanFormView.vue"),
 	   meta: { layout: "DefaultLayout",
         requiresAuth: true,
         menuId: "33",
-        title: "Mesin Kasir",
+        title: "Tambah Penjualan",
         browseRoute: "penjualanBrowse",}
 	  
 	},
+    {
+      path: "/transaksi/penjualan/form",
+      redirect: { name: "penjualanCreate" },
+    },
+      name: "penjualanEdit",
+      component: () => import("@/views/transaksi/penjualanFormView.vue"),
+      meta: {
+        layout: "DefaultLayout",
+        requiresAuth: true,
+        menuId: "33",
+        title: "Ubah Penjualan",
+        browseRoute: "penjualanBrowse",
+      },
+    },
     // MUTASI OUT
     {
       path: "/transaksi/mutasi-out",
