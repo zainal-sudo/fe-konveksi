@@ -2,6 +2,7 @@
 import { ref, computed, watch, onMounted, onUnmounted, nextTick } from "vue";
 import { IconSearch, IconFilter, IconX } from "@tabler/icons-vue";
 
+import DsDatePicker from "@/components/DsDatePicker.vue";
 export type FilterType = "text" | "number" | "date" | "select";
 
 export interface TextFilter {
@@ -12,7 +13,8 @@ export interface TextFilter {
     | "starts_with"
     | "ends_with"
     | "empty"
-    | "not_empty";
+    | "not_empty"
+    | "search"; // quick search (LIKE)
   value: string;
 }
 
@@ -52,6 +54,9 @@ const emit = defineEmits<{
 const textOperator = ref<TextFilter["operator"]>("contains");
 const textValue = ref("");
 
+// ── Quick search (LIKE) state ────────────────────────────────────────────
+const quickSearch = ref("");
+
 // ── Number filter state ──────────────────────────────────────────────────
 const numOperator = ref<NumberFilter["operator"]>("=");
 const numValue = ref<string>("");
@@ -63,7 +68,6 @@ const dateValue = ref("");
 const dateValueTo = ref("");
 
 // ── Select filter state ──────────────────────────────────────────────────
-const selectSearch = ref("");
 const selectAllChecked = ref(true);
 const selectValues = ref<Record<string, boolean>>({});
 
@@ -82,22 +86,41 @@ const initFromModel = () => {
     dateOperator.value = "between";
     dateValue.value = "";
     dateValueTo.value = "";
-    selectValues.value = {};
-    selectAllChecked.value = true;
+    quickSearch.value = "";
+    // For select: default all checked
+    if (props.filterType === "select") {
+      const newObj: Record<string, boolean> = {};
+      for (const v2 of uniqueSelectValues.value) newObj[v2] = true;
+      selectValues.value = newObj;
+      selectAllChecked.value = true;
+    } else {
+      selectValues.value = {};
+      selectAllChecked.value = true;
+    }
     return;
   }
 
   if (props.filterType === "text" && "operator" in v && "value" in v) {
-    textOperator.value = (v as TextFilter).operator;
-    textValue.value = (v as TextFilter).value;
+    const tf = v as TextFilter;
+    if (tf.operator === "search") {
+      quickSearch.value = tf.value;
+      textOperator.value = "contains";
+      textValue.value = "";
+    } else {
+      textOperator.value = tf.operator;
+      textValue.value = tf.value;
+      quickSearch.value = "";
+    }
   } else if (props.filterType === "number" && "operator" in v) {
     numOperator.value = (v as NumberFilter).operator;
     numValue.value = String((v as NumberFilter).value ?? "");
     numValueTo.value = String((v as NumberFilter).valueTo ?? "");
+    quickSearch.value = "";
   } else if (props.filterType === "date" && "operator" in v) {
     dateOperator.value = (v as DateFilter).operator;
     dateValue.value = (v as DateFilter).value;
     dateValueTo.value = (v as DateFilter).valueTo;
+    quickSearch.value = "";
   } else if (props.filterType === "select" && "allowed" in v) {
     const allowed = (v as SelectFilter).allowed;
     const newObj: Record<string, boolean> = {};
@@ -106,6 +129,7 @@ const initFromModel = () => {
     }
     selectValues.value = newObj;
     selectAllChecked.value = Object.values(newObj).every(Boolean);
+    quickSearch.value = "";
   }
 };
 
@@ -159,7 +183,7 @@ watch(
 const dropdownRef = ref<HTMLElement | null>(null);
 const onDocClick = (e: MouseEvent) => {
   const target = e.target as HTMLElement;
-  if (!target.closest(".cf-dropdown") && !target.closest(".col-filter-btn") && !target.closest(".vpf-filter-btn") && !target.closest(".vpf-popup")) {
+  if (!target.closest(".cf-dropdown") && !target.closest(".col-filter-btn") && !target.closest(".vpf-filter-btn") && !target.closest(".vpf-popup") && !target.closest(".ds-date-menu")) {
     emit("close");
   }
 };
@@ -168,12 +192,34 @@ onUnmounted(() => document.removeEventListener("click", onDocClick));
 
 // ── Filtered unique values for select search ─────────────────────────────
 const filteredSelectValues = computed(() => {
-  const q = selectSearch.value.toLowerCase();
+  const q = quickSearch.value.trim().toLowerCase();
   const all = uniqueSelectValues.value;
   return q ? all.filter((v) => v.toLowerCase().includes(q)) : all;
 });
 
 // ── Select actions ───────────────────────────────────────────────────────
+// ── Live emit for select checkboxes ─────────────────────────────────────
+// Centang/hilang centang langsung menerapkan filter (tanpa perlu OK),
+// sama seperti quick search. Logika identik dengan cabang select applyFilter.
+const emitSelectLive = () => {
+  const allCount = uniqueSelectValues.value.length;
+  const checkedCount = Object.values(selectValues.value).filter(Boolean).length;
+  if (checkedCount !== allCount) {
+    const allowed = new Set<string>();
+    for (const [key, val] of Object.entries(selectValues.value)) {
+      if (val) allowed.add(key);
+    }
+    emit("update:modelValue", { allowed } as SelectFilter);
+  } else {
+    const q = quickSearch.value.trim();
+    if (q) {
+      emit("update:modelValue", { operator: "search", value: q } as TextFilter);
+    } else {
+      emit("update:modelValue", null);
+    }
+  }
+};
+
 const toggleSelectAll = async () => {
   ensureAllKeys();
   await nextTick();
@@ -184,6 +230,7 @@ const toggleSelectAll = async () => {
     newObj[v] = newVal;
   }
   selectValues.value = newObj;
+  emitSelectLive();
 };
 
 const toggleSelectVal = (val: string) => {
@@ -191,10 +238,46 @@ const toggleSelectVal = (val: string) => {
   const newObj = { ...selectValues.value, [val]: !(selectValues.value[val] ?? true) };
   selectValues.value = newObj;
   selectAllChecked.value = Object.values(newObj).every(Boolean);
+  emitSelectLive();
 };
+
+// ── Quick search (LIKE) — live filter per kolom ──────────────────────────
+const emitQuickSearch = () => {
+  const q = quickSearch.value.trim();
+  if (q) {
+    emit("update:modelValue", { operator: "search", value: q } as TextFilter);
+  } else {
+    emit("update:modelValue", null);
+  }
+};
+watch(quickSearch, emitQuickSearch);
 
 // ── Apply filter ─────────────────────────────────────────────────────────
 const applyFilter = () => {
+  const q = quickSearch.value.trim();
+  if (props.filterType === "select") {
+    // Seleksi nilai eksplisit menang; jika tidak ada yang diubah, pakai pencarian cepat
+    const allCount = uniqueSelectValues.value.length;
+    const checkedCount = Object.values(selectValues.value).filter(Boolean).length;
+    if (checkedCount !== allCount) {
+      const allowed = new Set<string>();
+      for (const [key, val] of Object.entries(selectValues.value)) {
+        if (val) allowed.add(key);
+      }
+      emit("update:modelValue", { allowed } as SelectFilter);
+    } else if (q) {
+      emit("update:modelValue", { operator: "search", value: q } as TextFilter);
+    } else {
+      emit("update:modelValue", null);
+    }
+    emit("close");
+    return;
+  }
+  if (q) {
+    emit("update:modelValue", { operator: "search", value: q } as TextFilter);
+    emit("close");
+    return;
+  }
   if (props.filterType === "text") {
     if (!textValue.value && textOperator.value !== "empty" && textOperator.value !== "not_empty") {
       emit("update:modelValue", null);
@@ -246,24 +329,12 @@ const applyFilter = () => {
         valueTo: "",
       } as DateFilter);
     }
-  } else if (props.filterType === "select") {
-    const allCount = uniqueSelectValues.value.length;
-    const entries = Object.entries(selectValues.value);
-    const checkedCount = entries.filter(([, v]) => v).length;
-    if (checkedCount === allCount) {
-      emit("update:modelValue", null);
-    } else {
-      const allowed = new Set<string>();
-      for (const [key, val] of entries) {
-        if (val) allowed.add(key);
-      }
-      emit("update:modelValue", { allowed } as SelectFilter);
-    }
   }
   emit("close");
 };
 
 const clearFilter = () => {
+  quickSearch.value = "";
   emit("update:modelValue", null);
   emit("close");
 };
@@ -313,9 +384,25 @@ const dateOperators = [
         </button>
       </div>
 
+      <!-- Quick search (LIKE) — filter baris per kolom -->
+      <div class="cf-section cf-section-search">
+        <!-- <div class="cf-sec-label">Cari cepat</div> -->
+        <div class="cf-search-row">
+          <IconSearch :size="12" class="cf-search-icon" />
+          <input
+            v-model="quickSearch"
+            type="text"
+            class="cf-search-input"
+            placeholder="Cari baris di kolom ini..."
+            @keydown.enter="applyFilter"
+          />
+        </div>
+      </div>
+
       <!-- TEXT filter -->
       <template v-if="filterType === 'text'">
         <div class="cf-body">
+          <div class="cf-sec-label">Filter lanjutan</div>
           <div class="cf-row">
             <select v-model="textOperator" class="cf-select">
               <option v-for="op in textOperators" :key="op.value" :value="op.value">
@@ -338,6 +425,7 @@ const dateOperators = [
       <!-- NUMBER filter -->
       <template v-else-if="filterType === 'number'">
         <div class="cf-body">
+          <div class="cf-sec-label">Filter lanjutan</div>
           <div class="cf-row">
             <select v-model="numOperator" class="cf-select">
               <option v-for="op in numberOperators" :key="op.value" :value="op.value">
@@ -378,6 +466,7 @@ const dateOperators = [
       <!-- DATE filter -->
       <template v-else-if="filterType === 'date'">
         <div class="cf-body">
+          <div class="cf-sec-label">Filter lanjutan</div>
           <div class="cf-row">
             <select v-model="dateOperator" class="cf-select">
               <option v-for="op in dateOperators" :key="op.value" :value="op.value">
@@ -386,28 +475,13 @@ const dateOperators = [
             </select>
           </div>
           <div v-if="dateOperator !== 'between'" class="cf-row">
-            <input
-              v-model="dateValue"
-              type="date"
-              class="cf-input"
-              @keydown.enter="applyFilter"
-            />
+            <DsDatePicker v-model="dateValue" variant="form" class="cf-input" @keydown.enter="applyFilter" />
           </div>
           <div v-else class="cf-row-between">
             <label class="cf-label">Dari</label>
-            <input
-              v-model="dateValue"
-              type="date"
-              class="cf-input"
-              @keydown.enter="applyFilter"
-            />
+            <DsDatePicker v-model="dateValue" variant="form" class="cf-input" @keydown.enter="applyFilter" />
             <label class="cf-label">Sampai</label>
-            <input
-              v-model="dateValueTo"
-              type="date"
-              class="cf-input"
-              @keydown.enter="applyFilter"
-            />
+            <DsDatePicker v-model="dateValueTo" variant="form" class="cf-input" @keydown.enter="applyFilter" />
           </div>
         </div>
       </template>
@@ -415,14 +489,9 @@ const dateOperators = [
       <!-- SELECT filter (checkbox) -->
       <template v-else-if="filterType === 'select'">
         <div class="cf-body cf-body-select">
-          <div class="cf-search-row">
-            <IconSearch :size="12" class="cf-search-icon" />
-            <input
-              v-model="selectSearch"
-              type="text"
-              class="cf-search-input"
-              placeholder="Cari..."
-            />
+          <div class="cf-sec-label">Pilih nilai</div>
+          <div v-if="quickSearch.trim()" class="cf-live-note">
+            Baris ikut terfilter: mengandung "{{ quickSearch }}"
           </div>
           <div class="cf-select-actions">
             <button class="cf-action-btn" @click="toggleSelectAll">
@@ -452,6 +521,10 @@ const dateOperators = [
 
       <!-- Footer -->
       <div class="cf-footer">
+        <button v-if="isActive" class="cf-clear-footer-btn" @click="clearFilter">
+          Bersihkan
+        </button>
+        <div class="cf-footer-spacer" />
         <button class="cf-ok-btn" @click="applyFilter">OK</button>
       </div>
     </div>
@@ -599,6 +672,36 @@ const dateOperators = [
   border-color: var(--ds-primary, #3B5998);
 }
 
+/* Section: pembatas antar bagian dropdown */
+.cf-section {
+  padding: 5px 6px 6px;
+  border-bottom: 1px solid var(--ds-border-light, #C4CAD3);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.cf-section-search .cf-search-row {
+  padding: 0;
+}
+.cf-sec-label {
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: rgba(var(--v-theme-on-surface), 0.45);
+}
+.cf-body-select .cf-sec-label {
+  padding: 6px 6px 0;
+}
+.cf-live-note {
+  font-size: 10px;
+  line-height: 1.4;
+  color: var(--ds-primary, #3B5998);
+  background: var(--ds-primary-50, #E8EDF5);
+  padding: 3px 6px;
+  margin: 4px 6px 2px;
+}
+
 /* Select actions */
 .cf-select-actions {
   display: flex;
@@ -667,7 +770,24 @@ const dateOperators = [
   padding: 4px 6px;
   border-top: 1px solid var(--ds-border, #A0AAB8);
   display: flex;
-  justify-content: flex-end;
+  align-items: center;
+  gap: 4px;
+}
+.cf-footer-spacer {
+  flex: 1;
+}
+.cf-clear-footer-btn {
+  background: none;
+  border: 1px solid var(--ds-border, #A0AAB8);
+  border-radius: 0;
+  color: #c62828;
+  padding: 3px 8px;
+  font-size: 10px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.cf-clear-footer-btn:hover {
+  background: rgba(198, 40, 40, 0.08);
 }
 .cf-ok-btn {
   background: var(--ds-primary, #3B5998);

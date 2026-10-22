@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, watch, nextTick } from "vue";
+import { ref, computed, onMounted, onBeforeUnmount, watch, nextTick } from "vue";
 import { useRoute } from "vue-router";
 import PageLayout from "@/components/PageLayout.vue";
 import ColumnFilter, {
@@ -447,29 +447,33 @@ const injectTfoot = () => {
       summaryMap[col.key] = summaryTotals.value[col.key] || "0";
     }
 
-    // Find which header keys map to which column index
-    const headerKeys: string[] = [];
+    // Posisi kolom: cocokkan tiap th berdasar JUDUL-nya ke header asli,
+    // supaya kolom internal (expand / select) tidak menggeser posisi.
+    const titleToKey = new Map<string, string>();
+    for (const h of props.headers as any[]) {
+      const t = (h.title || "").trim();
+      if (t && !titleToKey.has(t)) titleToKey.set(t, h.key);
+    }
+    const keyAt: string[] = [];
     ths.forEach((th) => {
-      // Vuetify stores the column key in data attribute or we can match by title
-      const text = (th as HTMLElement).textContent?.trim() || "";
-      headerKeys.push(text);
+      const t = (th as HTMLElement).textContent?.trim() || "";
+      keyAt.push(titleToKey.get(t) || "");
     });
 
-    // Get the actual header keys from props.headers
-    const colKeys = props.headers.map((h: any) => h.key);
-
+    let labelPlaced = false;
     for (let i = 0; i < totalCols; i++) {
       const td = document.createElement("td");
       td.className = "summary-tfoot-td";
 
       // Check if this column has a summary value
-      const key = colKeys[i] || "";
+      const key = keyAt[i] || "";
       if (summaryMap[key]) {
         td.textContent = summaryMap[key];
         td.classList.add("summary-tfoot-val");
-      } else if (i === 0) {
+      } else if (!labelPlaced && key) {
         td.textContent = "TOTAL";
         td.classList.add("summary-tfoot-label");
+        labelPlaced = true;
       }
 
       tr.appendChild(td);
@@ -532,6 +536,52 @@ watch(
   () => injectTfoot(),
   { deep: true },
 );
+
+// ── Auto-align: sel angka (stok, qty, nilai, persen dll) rata kanan ─────
+// Deteksi isi sel: digit + pemisah ribuan/desimal + %, boleh bermula "Rp"
+// atau minus (angka negatif). Tanggal (pola dd-mm-yyyy) tidak dianggap angka.
+const NUMERIC_CELL_RE = /^[\d.,%\s]+$/;
+const TANGGAL_CELL_RE = /\d{1,4}-\d{1,2}-\d{1,4}/;
+
+const autoAlignNumCells = () => {
+  const tds = tableWrapRef.value?.querySelectorAll(
+    ".v-table__wrapper tbody td",
+  );
+  if (!tds) return;
+  tds.forEach((td) => {
+    const t = (td.textContent || "").trim().replace(/^[-+]?Rp\s*/i, "");
+    if (t && !TANGGAL_CELL_RE.test(t) && NUMERIC_CELL_RE.test(t)) {
+      td.classList.add("num-auto-align");
+    } else {
+      td.classList.remove("num-auto-align");
+    }
+  });
+};
+
+let autoAlignObserver: MutationObserver | null = null;
+
+const observeTableChanges = () => {
+  const wrapper = tableWrapRef.value?.querySelector(
+    ".v-table__wrapper",
+  ) as HTMLElement | null;
+  if (!wrapper) return;
+  autoAlignObserver?.disconnect();
+  autoAlignObserver = new MutationObserver(() => autoAlignNumCells());
+  autoAlignObserver.observe(wrapper, {
+    childList: true,
+    subtree: true,
+    characterData: true,
+  });
+};
+
+onMounted(() => {
+  nextTick(() => {
+    autoAlignNumCells();
+    observeTableChanges();
+  });
+});
+
+onBeforeUnmount(() => autoAlignObserver?.disconnect());
 
 // ── Row click ───────────────────────────────────────────────────────────
 const handleRowClick = (event: PointerEvent, { item }: { item: any }) => {
@@ -1063,6 +1113,11 @@ watch(
   white-space: nowrap !important;
   overflow: hidden !important;
   text-overflow: ellipsis !important;
+}
+/* Sel angka: selalu rata kanan (auto-detek via kelas num-auto-align) */
+.base-table :deep(td.num-auto-align) {
+  text-align: right !important;
+  font-variant-numeric: tabular-nums !important;
 }
 .base-table :deep(tbody tr:nth-child(even)) {
   background-color: #F0F3F8;

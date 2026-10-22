@@ -24,6 +24,7 @@ const {
 const headers = [
   { title: "Kode", key: "kode", width: "100px", align: "center" },
   { title: "Nama Gudang", key: "nama", minWidth: "200px" },
+  { title: "Cabang", key: "cabangNama", width: "160px" },
   { title: "Penanggung Jawab", key: "penanggungjawab", minWidth: "150px" },
   { title: "Keterangan", key: "keterangan", minWidth: "200px" },
 ];
@@ -40,6 +41,7 @@ const exportExcelData = () => {
     columns: [
       { header: "Kode", key: "kode", width: 12, align: "center" },
       { header: "Nama Gudang", key: "nama", width: 30 },
+      { header: "Cabang", key: "cabangNama", width: 22 },
       { header: "Penanggung Jawab", key: "penanggungjawab", width: 24 },
       { header: "Keterangan", key: "keterangan", width: 30 },
     ],
@@ -52,8 +54,19 @@ const dialog = ref(false);
 const dialogTitle = ref("");
 const isSaving = ref(false);
 
-const emptyForm = () => ({ isEdit: false, kode: "", nama: "", penanggungjawab: "", keterangan: "" });
+const emptyForm = () => ({ isEdit: false, kode: "", nama: "", penanggungjawab: "", keterangan: "", cabang: "00" });
 const form = ref(emptyForm());
+
+// Cabang untuk dropdown (gudang adalah anak dari cabang)
+const cabangOptions = ref<{ kode: string; nama: string }[]>([]);
+const loadCabang = async () => {
+  try {
+    cabangOptions.value = await gudangApi.getCabang();
+  } catch {
+    /* silent */
+  }
+};
+loadCabang();
 
 // ── Validasi Form ─────────────────────────────────────────────────────
 const errors = ref<{ kode?: string; nama?: string }>({});
@@ -81,6 +94,7 @@ const openEdit = (item: Gudang) => {
     nama: item.nama,
     penanggungjawab: item.penanggungjawab,
     keterangan: item.keterangan,
+    cabang: item.cabang || "00",
   };
   errors.value = {};
   dialogTitle.value = "Ubah Gudang";
@@ -167,6 +181,19 @@ const handleDelete = async (item: Gudang) => {
               @input="clearError('kode')"
               placeholder="Contoh: GDG01"
             />
+          </div>
+
+          <div class="f-row">
+            <label class="f-lbl">Cabang <span class="req">*</span></label>
+            <select v-model="form.cabang" class="f-inp-native" :disabled="isSaving">
+              <option
+                v-for="c in cabangOptions"
+                :key="c.kode"
+                :value="c.kode"
+              >
+                {{ c.kode }} - {{ c.nama }}
+              </option>
+            </select>
           </div>
 
           <div class="f-row">

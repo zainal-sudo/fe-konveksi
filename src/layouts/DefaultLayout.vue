@@ -210,7 +210,7 @@ const menus = [
     ],
   },
   {
-    title: "Transaksi",
+    title: "Pembelian",
     icon: IconCash,
     menuId: null,
     children: [
@@ -221,29 +221,41 @@ const menus = [
         menuId: "15",
       },
       {
-        title: "Penerimaan  Barang",
+        title: "Penerimaan Barang",
         icon: IconTruckDelivery,
         route: "/transaksi/bpb",
         menuId: "17",
       },
-      
       {
         title: "Invoice",
         icon: IconFileInvoice,
         route: "/transaksi/invoice",
-        menuId: "12", // ⚠️ GANTI sesuai ID menu "Invoice" di tabel menu/thakuser kamu
+        menuId: "12",
       },
-	   {
+      {
         title: "Retur Pembelian",
         icon: IconTruckDelivery,
         route: "/transaksi/retur",
         menuId: "16",
       },
-	 {
+      {
         title: "Pembayaran Supplier",
         icon: IconTruckDelivery,
         route: "/transaksi/bayarSupplier",
         menuId: "53",
+      },
+    ],
+  },
+  {
+    title: "Produksi",
+    icon: IconAdjustments,
+    menuId: null,
+    children: [
+      {
+        title: "STBJ",
+        icon: IconTruckDelivery,
+        route: "/transaksi/stbj",
+        menuId: "40",
       },
       {
         title: "Penyesuaian Stok",
@@ -252,25 +264,67 @@ const menus = [
         menuId: "27",
       },
       {
-  title: "STBJ",
-  icon: IconTruckDelivery,
-  route: "/transaksi/stbj",
-  menuId: "40",
-},      
-{
-  title: "Mutasi Gudang",
-  icon: IconTruckDelivery,
-  route: "/transaksi/mutasi",
-  menuId: "13",
-},
-
-   	 {
+        title: "Mutasi Gudang",
+        icon: IconTruckDelivery,
+        route: "/transaksi/mutasi",
+        menuId: "13",
+      },
+      {
+        title: "Mutasi Cabang Out",
+        icon: IconTruckDelivery,
+        route: "/transaksi/mutasi-out",
+        menuId: "15",
+      },
+      {
+        title: "Mutasi Cabang In",
+        icon: IconTruckDelivery,
+        route: "/transaksi/mutasi-in",
+        menuId: "17",
+      },
+    ],
+  },
+  {
+    title: "Penjualan",
+    icon: IconTruckDelivery,
+    menuId: null,
+    children: [
+      {
         title: "Penjualan",
         icon: IconTruckDelivery,
         route: "/transaksi/penjualan",
         menuId: "33",
       },
-
+      {
+        title: "Pembayaran Customer",
+        icon: IconCash,
+        route: "/transaksi/bayarCustomer",
+        menuId: "51",
+      },
+    ],
+  },
+  {
+    title: "Accounting",
+    icon: IconBook,
+    menuId: null,
+    children: [
+      {
+        title: "Jurnal Umum",
+        icon: IconList,
+        route: "/accounting/jurnal-umum",
+        menuId: "41",
+      },
+      {
+        title: "Pembayaran Lain Lain",
+        icon: IconCash,
+        route: "/accounting/pembayaran-lain",
+        menuId: "24",
+      },
+      {
+        title: "Penerimaan Lain Lain",
+        icon: IconReportMoney,
+        route: "/accounting/penerimaan-lain",
+        menuId: "23",
+      },
     ],
   },
  
@@ -288,8 +342,26 @@ const menus = [
 	  {
         title: "Lap Persediaan",
         icon: IconList,
-        route: "/laporan/Persediaan",
+        route: "/laporan/persediaan",
         menuId: 96,
+      },
+	  {
+        title: "Jual Per Item",
+        icon: IconList,
+        route: "/laporan/penjualan-item",
+        menuId: null,
+      },
+      {
+        title: "Neraca",
+        icon: IconList,
+        route: "/laporan/neraca",
+        menuId: null,
+      },
+      {
+        title: "Laba Rugi",
+        icon: IconList,
+        route: "/laporan/laba-rugi",
+        menuId: null,
       }
     ],
   },
@@ -309,14 +381,45 @@ const menus = [
 ];
 
 // ── Filter Menu Berdasarkan Hak Akses ─────────────────────────────────
+// User CABANG (bukan pusat '00') hanya boleh: Penjualan + Mutasi Out/In.
+// Menu lain disembunyikan; routing guard menyisakan yang sama.
+const userCabangKode = computed(() => (authStore.userCabang || "00"));
+const isUserCabang = computed(() => userCabangKode.value !== "00");
+const ROUTE_CABANG_DIIZINKAN = [
+  "/", // Dashboard
+  "/transaksi/penjualan",
+  "/transaksi/penjualan/create",
+  "/transaksi/penjualan/form",
+  "/transaksi/mutasi-out",
+  "/transaksi/mutasi-out/create",
+  "/transaksi/mutasi-out/edit",
+  "/transaksi/mutasi-in",
+  "/transaksi/mutasi-in/create",
+  "/transaksi/mutasi-in/edit",
+  "/laporan/persediaan",
+  "/laporan/penjualan-item",
+];
+
+const menuBolehUntukCabang = (menu: any) => {
+  if (!isUserCabang.value) return true;
+  const routes: string[] = menu.children
+    ? menu.children.map((c: any) => c.route)
+    : [menu.route];
+  return routes.some((r) => r && ROUTE_CABANG_DIIZINKAN.includes(r));
+};
+
 const filteredMenus = computed(() => {
   return (
     menus
+      .filter((menu) => menuBolehUntukCabang(menu))
       .map((menu) => {
         if (menu.children) {
-          const allowedChildren = menu.children.filter(
-            (child) => !child.menuId || authStore.can(child.menuId, "view")
-          );
+          const allowedChildren = menu.children
+            .filter(
+              (child) =>
+                (!child.menuId || authStore.can(child.menuId, "view")) &&
+                menuBolehUntukCabang({ children: [child], route: child.route }),
+            );
           return { ...menu, children: allowedChildren };
         }
 

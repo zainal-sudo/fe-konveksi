@@ -1,9 +1,14 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from "vue";
+import { ref, computed, onMounted, nextTick } from "vue";
 import { useRouter } from "vue-router";
 import { useAuthStore } from "@/stores/authStore";
 import { systemApi, type SystemInfo } from "@/api/systemApi";
-import { dashboardApi, type DashboardSummary } from "@/api/dashboardApi";
+import {
+  dashboardApi,
+  type DashboardSummary,
+  type SalesWidget,
+} from "@/api/dashboardApi";
+import Chart from "chart.js/auto";
 import {
   IconLayoutDashboard,
   IconReceipt2,
@@ -20,7 +25,11 @@ import {
   IconList,
   IconChevronRight,
   IconTrendingUp,
+  IconTrendingDown,
   IconFileInvoice,
+  IconShoppingCart,
+  IconCash,
+  IconCoin,
 } from "@tabler/icons-vue";
 import PageLayout from "@/components/PageLayout.vue";
 
@@ -81,6 +90,7 @@ onMounted(async () => {
   } finally {
     isSummaryLoading.value = false;
   }
+  await loadSales();
 });
 
 const serverDateFormatted = computed(() => {
@@ -88,6 +98,107 @@ const serverDateFormatted = computed(() => {
   const [y, m, d] = summaryData.value.serverDate.split("-");
   return `${d}/${m}/${y}`;
 });
+
+// ── Widget Penjualan ────────────────────────────────────────────────
+const salesData = ref<SalesWidget | null>(null);
+const isSalesLoading = ref(true);
+const salesCabangFilter = ref<string>("");
+const salesBarRef = ref<HTMLCanvasElement | null>(null);
+const salesDonutRef = ref<HTMLCanvasElement | null>(null);
+let salesBarChart: any = null;
+let salesDonutChart: any = null;
+
+const loadSales = async () => {
+  isSalesLoading.value = true;
+  try {
+    salesData.value = await dashboardApi.getSales(
+      salesCabangFilter.value || undefined,
+    );
+  } catch {
+    /* silent */
+  } finally {
+    isSalesLoading.value = false;
+  }
+  await nextTick();
+  renderSalesCharts();
+};
+
+const onSalesCabangChange = () => loadSales();
+
+onMounted(async () => {
+  try {
+    salesData.value = await dashboardApi.getSales();
+  } catch {
+    /* silent */
+  } finally {
+    isSalesLoading.value = false;
+  }
+  await nextTick();
+  renderSalesCharts();
+});
+
+const renderSalesCharts = () => {
+  const s = salesData.value;
+  if (!s) return;
+  if (salesBarRef.value) {
+    salesBarChart?.destroy();
+    salesBarChart = new Chart(salesBarRef.value, {
+      type: "bar",
+      data: {
+        labels: s.harian.map((h) => h.tanggal.slice(8) + "/" + h.tanggal.slice(5, 7)),
+        datasets: [
+          {
+            label: "Penjualan (Rp)",
+            data: s.harian.map((h) => h.nilai),
+            backgroundColor: "#3B5998",
+            borderRadius: 4,
+            maxBarThickness: 28,
+          },
+        ],
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { display: false } },
+        scales: {
+          y: {
+            ticks: {
+              callback: (v) => fmtCompact(Number(v)),
+              font: { size: 10 },
+            },
+            grid: { color: "rgba(0,0,0,0.05)" },
+          },
+          x: { grid: { display: false }, ticks: { font: { size: 10 } } },
+        },
+      },
+    });
+  }
+  if (salesDonutRef.value) {
+    salesDonutChart?.destroy();
+    const k = s.komposisi;
+    salesDonutChart = new Chart(salesDonutRef.value, {
+      type: "doughnut",
+      data: {
+        labels: ["Cash (DP)", "Kartu", "Voucher", "Piutang (Kredit)"],
+        datasets: [
+          {
+            data: [k.dp, k.card, k.voucher, k.piutang],
+            backgroundColor: ["#43a047", "#1e88e5", "#fb8c00", "#c62828"],
+            borderWidth: 1,
+          },
+        ],
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        cutout: "62%",
+        plugins: {
+          legend: { position: "bottom", labels: { font: { size: 10 }, boxWidth: 10 } },
+        },
+      },
+    });
+  }
+};
 
 // Chart data — proporsi tugas
 const chartBars = computed(() => {
@@ -219,6 +330,143 @@ const chartBars = computed(() => {
           <IconBuildingBank :size="36" color="rgba(255,255,255,0.3)" />
         </div>
       </div>
+
+      <!-- ── Penjualan ── -->
+      <div class="sales-head" style="margin-top: 24px">
+        <h3 class="section-title" style="margin: 0">
+          <IconShoppingCart :size="14" style="color: #2e7d32" />
+          Penjualan
+        </h3>
+        <select
+          v-if="salesData?.userPusat"
+          v-model="salesCabangFilter"
+          @change="onSalesCabangChange"
+          class="sales-filter"
+        >
+          <option
+            v-for="opt in salesData!.daftarCabang"
+            :key="opt.kode"
+            :value="opt.kode"
+          >
+            {{ opt.nama }}
+          </option>
+        </select>
+      </div>
+      <div v-if="isSalesLoading" class="sales-loading">Memuat data penjualan…</div>
+      <template v-else-if="salesData">
+        <!-- KPI -->
+        <div class="sales-kpis">
+          <div class="kpi-card kpi-blue">
+            <div class="kpi-ico"><IconReceipt2 :size="18" /></div>
+            <div>
+              <div class="kpi-label">Penjualan Bulan Ini</div>
+              <div class="kpi-val">Rp {{ fmtCompact(salesData.bulan.penjualan) }}</div>
+              <div class="kpi-sub" v-if="salesData.bulan.deltaPct !== null">
+                <IconTrendingUp v-if="salesData.bulan.deltaPct >= 0" :size="11" />
+                <IconTrendingDown v-else :size="11" />
+                {{ Math.abs(salesData.bulan.deltaPct).toFixed(1) }}% vs bulan lalu (Rp {{ fmtCompact(salesData.bulan.penjualanPrev) }})
+              </div>
+              <div class="kpi-sub" v-else>Bulan lalu: Rp {{ fmtCompact(salesData.bulan.penjualanPrev) }}</div>
+            </div>
+          </div>
+          <div class="kpi-card kpi-green">
+            <div class="kpi-ico"><IconCash :size="18" /></div>
+            <div>
+              <div class="kpi-label">Cash Masuk (DP/Kartu/Voucher)</div>
+              <div class="kpi-val">Rp {{ fmtCompact(salesData.bulan.cash) }}</div>
+              <div class="kpi-sub">{{ salesData.bulan.nota }} nota bulan ini · {{ salesData.bulan.notaPrev }} bulan lalu</div>
+            </div>
+          </div>
+          <div class="kpi-card kpi-orange">
+            <div class="kpi-ico"><IconAlertCircle :size="18" /></div>
+            <div>
+              <div class="kpi-label">Piutang Belum Lunas</div>
+              <div class="kpi-val">Rp {{ fmtCompact(salesData.piutang.total) }}</div>
+              <div class="kpi-sub">{{ salesData.piutang.nota }} nota · baru bulan ini Rp {{ fmtCompact(salesData.bulan.piutangBaru) }}</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Chart harian + komposisi -->
+        <div class="sales-grid">
+          <div class="sales-card">
+            <div class="sales-card-title">Penjualan Harian (Bulan Ini)</div>
+            <div class="chart-box">
+              <canvas ref="salesBarRef"></canvas>
+              <div v-if="!salesData.harian.length" class="chart-empty">Belum ada penjualan bulan ini</div>
+            </div>
+          </div>
+          <div class="sales-card">
+            <div class="sales-card-title">Cara Pembayaran</div>
+            <div class="chart-box">
+              <canvas ref="salesDonutRef"></canvas>
+              <div v-if="salesData.bulan.nota === 0" class="chart-empty">Belum ada transaksi</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Cabang + top customer + piutang -->
+        <div class="sales-grid3">
+          <div v-if="salesData.isPusat" class="sales-card">
+            <div class="sales-card-title">Per Cabang</div>
+            <div
+              v-for="c in salesData.perCabang"
+              :key="c.cabang"
+              class="row-item clickable"
+              @click="router.push('/transaksi/penjualan')"
+            >
+              <span class="row-main">{{ c.cabang }} · {{ c.nama }}</span>
+              <span class="row-val">Rp {{ fmtCompact(c.bulanIni) }}</span>
+              <span class="row-sub">{{ c.nota }} nota · bulan lalu Rp {{ fmtCompact(c.bulanLalu) }}</span>
+            </div>
+            <div v-if="!salesData.perCabang.length" class="row-empty">Tidak ada data</div>
+          </div>
+          <div class="sales-card">
+            <div class="sales-card-title">Top Customer (Bulan Ini)</div>
+            <div v-for="(c, i) in salesData.topCustomer" :key="'tc'+i" class="row-item">
+              <span class="row-main">{{ c.nama }}</span>
+              <span class="row-val">Rp {{ fmtCompact(c.nilai) }}</span>
+              <span class="row-sub">{{ c.nota }} nota</span>
+            </div>
+            <div v-if="!salesData.topCustomer.length" class="row-empty">Tidak ada data</div>
+          </div>
+          <div class="sales-card">
+            <div class="sales-card-title">Piutang Tertunggak Teratas</div>
+            <router-link
+              v-for="(p, i) in salesData.piutang.top"
+              :key="'pt'+i"
+              :to="`/transaksi/bayarCustomer`"
+              class="row-item clickable no-deco"
+            >
+              <span class="row-main mono">{{ p.nomor }}</span>
+              <span class="row-val text-red">Rp {{ fmtCompact(p.sisa) }}</span>
+              <span class="row-sub">{{ p.customer }} · {{ p.tanggal }}</span>
+            </router-link>
+            <div v-if="!salesData.piutang.top.length" class="row-empty">Semua piutang lunas</div>
+          </div>
+        </div>
+
+        <!-- Terbaru -->
+        <div class="sales-card" style="margin-top: 12px">
+          <div class="sales-card-title">Nota Terbaru</div>
+          <div class="terbaru-wrap">
+            <router-link
+              v-for="t in salesData.terbaru"
+              :key="t.nomor"
+              :to="`/transaksi/penjualan`"
+              class="nota-chip no-deco"
+              :title="t.customer"
+            >
+              <span class="mono">{{ t.nomor }}</span>
+              <span class="nota-amt">Rp {{ fmtCompact(t.total) }}</span>
+              <span v-if="t.sisaPiutang > 0" class="nota-badge warn">Piutang</span>
+              <span v-else-if="!t.closed" class="nota-badge ok">Tunai</span>
+              <span v-else class="nota-badge done">Closed</span>
+            </router-link>
+          </div>
+          <div v-if="!salesData.terbaru.length" class="row-empty">Tidak ada transaksi</div>
+        </div>
+      </template>
 
       <!-- ── Tugas Menunggu ── -->
       <h3 class="section-title">
@@ -851,4 +1099,233 @@ const chartBars = computed(() => {
     padding: 10px;
   }
 }
+
+/* ── Widget Penjualan ── */
+.sales-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.sales-filter {
+  height: 30px;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  padding: 0 8px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #1f2937;
+  background: #fff;
+  outline: none;
+  cursor: pointer;
+}
+.sales-filter:focus {
+  border-color: #3b5998;
+}
+.sales-loading {
+  background: #fff;
+  border: 1px dashed #ccc;
+  border-radius: 10px;
+  padding: 24px;
+  text-align: center;
+  font-size: 12px;
+  color: #888;
+}
+
+.sales-kpis {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  margin-bottom: 12px;
+}
+@media (max-width: 900px) {
+  .sales-kpis {
+    grid-template-columns: 1fr;
+  }
+}
+.kpi-card {
+  background: #fff;
+  border: 1px solid #e4e4ee;
+  border-radius: 10px;
+  padding: 14px 16px;
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+}
+.kpi-ico {
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  flex-shrink: 0;
+}
+.kpi-blue .kpi-ico { background: #3b5998; }
+.kpi-blue .kpi-val { color: #3b5998; }
+.kpi-green .kpi-ico { background: #2e7d32; }
+.kpi-green .kpi-val { color: #2e7d32; }
+.kpi-orange .kpi-ico { background: #ef6c00; }
+.kpi-orange .kpi-val { color: #ef6c00; }
+
+.kpi-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: #777;
+  margin-bottom: 2px;
+}
+.kpi-val {
+  font-size: 18px;
+  font-weight: 700;
+}
+.kpi-sub {
+  font-size: 10.5px;
+  color: #999;
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  margin-top: 2px;
+}
+
+.sales-grid {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+@media (max-width: 900px) {
+  .sales-grid {
+    grid-template-columns: 1fr;
+  }
+}
+.sales-grid3 {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+}
+@media (max-width: 900px) {
+  .sales-grid3 {
+    grid-template-columns: 1fr;
+  }
+}
+.sales-card {
+  background: #fff;
+  border: 1px solid #e4e4ee;
+  border-radius: 10px;
+  padding: 12px 14px;
+}
+.sales-card-title {
+  font-size: 11px;
+  font-weight: 700;
+  color: #555;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  margin-bottom: 10px;
+}
+.chart-box {
+  position: relative;
+  height: 200px;
+}
+.chart-empty {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  color: #aaa;
+  font-style: italic;
+}
+
+.row-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 7px 0;
+  border-bottom: 1px solid #f2f2f6;
+  font-size: 12px;
+}
+.row-item:last-child {
+  border-bottom: none;
+}
+.row-item.clickable {
+  cursor: pointer;
+}
+.row-item.clickable:hover {
+  background: #f8f8fc;
+}
+.row-main {
+  flex: 1;
+  color: #333;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.row-val {
+  font-weight: 700;
+  color: #3b5998;
+  white-space: nowrap;
+}
+.row-val.text-red {
+  color: #c62828;
+}
+.row-sub {
+  width: 100%;
+  font-size: 10px;
+  color: #999;
+}
+.row-empty {
+  font-size: 11px;
+  color: #aaa;
+  font-style: italic;
+  padding: 10px 0;
+}
+.mono {
+  font-family: "Courier New", monospace;
+  font-weight: 700;
+  font-size: 11px;
+}
+.no-deco {
+  text-decoration: none;
+  display: flex;
+  flex-wrap: wrap;
+}
+
+.terbaru-wrap {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.nota-chip {
+  border: 1px solid #e4e4ee;
+  border-radius: 20px;
+  padding: 5px 12px;
+  font-size: 11px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+}
+.nota-chip:hover {
+  border-color: #3b5998;
+  background: #f4f6fb;
+}
+.nota-amt {
+  font-weight: 700;
+  color: #3b5998;
+}
+.nota-badge {
+  font-size: 9px;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 10px;
+  text-transform: uppercase;
+}
+.nota-badge.warn { background: #fdecea; color: #c62828; }
+.nota-badge.ok { background: #e8f5e9; color: #2e7d32; }
+.nota-badge.done { background: #eceff1; color: #546e7a; }
 </style>

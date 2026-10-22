@@ -65,6 +65,9 @@ const headers = [
   { title: "SUDAH DIBAYAR", key: "InvoiceSudahDibayar", width: "140px", align: "end" },
 ];
 
+// Baris TOTAL di footer grid
+const summaryColumns = [{ key: "Total", label: "Total Retur" }];
+
 const loadData = async () => {
   isLoading.value = true;
   selected.value = [];
@@ -248,6 +251,7 @@ const rowPropsFn = (data: any) => {
     item-value="Nomor"
     @update:expanded="onUpdateExpanded"
     v-model:selected="selected"
+    :summary-columns="summaryColumns"
     @refresh="loadData"
   >
     <template #filter-left>

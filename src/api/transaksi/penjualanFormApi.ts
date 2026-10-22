@@ -29,6 +29,16 @@ export interface PenjualanForm {
   discFaktur: number;
   amount: number;
   taxAmount: number;
+  ongkir?: number;
+  bayar?: number; // cash/tunai diterima
+  kembali?: number;
+  dp?: number;
+  voucher?: number;
+  noVoucher?: string;
+  card?: number;
+  noCard?: string;
+  bankCard?: string;
+  piutang?: number;
   dateline: string;
   pemesan: string;
   detail: PenjualanDetail[];

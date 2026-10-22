@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from "vue";
+import { ref, computed, onMounted, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { useToast } from "vue-toastification";
 import { useAuthStore } from "@/stores/authStore";
@@ -319,6 +319,8 @@ const addRow = () => {
     toast.warning("Semua item pada invoice ini sudah dipakai penuh di tabel — tidak ada lagi yang bisa diretur.");
     return;
   }
+  // ✅ Perspective PO: baris baru langsung membuka modal pencarian barang —
+  // user tidak perlu klik kolom kode dulu.
   form.value.detail.push({
     no: form.value.detail.length + 1,
     brgKode: 0,
@@ -330,7 +332,24 @@ const addRow = () => {
     discPr: 0,
     keterangan: ""
   } as any);
+  openSearchBarang(form.value.detail.length - 1);
 };
+
+// ✅ Biar sama seperti PO: baris yang dibuka modal-nya tapi ditutup tanpa
+// memilih barang (masih kosong) otomatis dibuang, jadi tidak menumpuk
+// baris kosong tiap klik "Tambah Baris".
+watch(showBarangModal, (val) => {
+  if (val) return;
+  const idx = activeDetailIndex.value;
+  if (idx >= 0) {
+    const d = form.value.detail[idx] as any;
+    if (d && !d.brgNama) {
+      form.value.detail.splice(idx, 1);
+      form.value.detail.forEach((row, i) => (row.no = i + 1));
+    }
+  }
+  activeDetailIndex.value = -1;
+});
 
 const removeRow = (index: number) => {
   form.value.detail.splice(index, 1);

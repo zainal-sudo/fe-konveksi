@@ -3,7 +3,11 @@ import axios from "axios";
 let isExpiredHandled = false; // cegah double dispatch
 
 const api = axios.create({
-  baseURL: "http://103.175.221.20:3199/api",
+  // ⚠️ ENV PEMBAHASAN LOKAL: arahkan ke backend yang jalan di komputer ini
+  // (kode baru: jurnal otomatis INV/RET/Bayar/SO dll). Sebelumnya ke
+  // http://103.175.221.20:3199/api -- backend VPS yang masih kode lama.
+  // Ganti balik ke 103175.221.20 saat sudah deploy backend baru ke sana.
+  baseURL: "http://localhost:3199/api",
   timeout: 30000,
   headers: { "Content-Type": "application/json" },
 });

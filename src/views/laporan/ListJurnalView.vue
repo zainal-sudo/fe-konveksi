@@ -14,7 +14,7 @@ import {
   IconTable,
   IconChartBar,
 } from "@tabler/icons-vue";
-import { initPivot, jQuery as jq } from "@/lib/pivottable-setup";
+import { initPivot, getSubtotalExtension, jQuery as jq } from "@/lib/pivottable-setup";
 
 const toast = useToast();
 const MENU_ID = "";
@@ -102,14 +102,22 @@ const headers = [
   { key: "DetailCC", title: "Detail CC", width: "160px" },
 ];
 
+// Baris TOTAL di bawah tabel (tfoot) untuk kolom Debet & Kredit
+const summaryColumns = [
+  { key: "Debet", label: "Debet" },
+  { key: "Kredit", label: "Kredit" },
+];
+
 // ── Load ──────────────────────────────────────────────────────────────
 const loadData = async () => {
   isLoading.value = true;
   try {
-    items.value = await listJurnalApi.getListJurnal(
+    // Nomor tidak unik (1 jurnal = banyak baris) — v-data-table butuh key unik
+    // agar tidak merender baris dobel untuk nomor yang sama.
+    items.value = (await listJurnalApi.getListJurnal(
       filterState.value.startDate,
       filterState.value.endDate
-    );
+    )).map((r: any, i: number) => ({ ...r, RowKey: `${r.Nomor || ""}|${i}` }));
     pivotRendered.value = false; // data baru → pivot perlu di-render ulang
   } catch (e: any) {
     if (isAuthExpiredError(e)) return;
@@ -146,6 +154,20 @@ const renderPivot = async () => {
 
   const plainData = buildPlainData();
 
+  // Subtotal.js: renderer collapsible (▶/▼) + subtotal grup, fallback ke
+  // Table biasa jika CDN gagal.
+  const pu = getSubtotalExtension();
+  const subtotalOpts: Record<string, unknown> = pu
+    ? {
+        dataClass: pu.SubtotalPivotData,
+        renderers: { ...pu.renderers, ...pu.subtotal_renderers },
+        rendererOptions: {
+          rowSubtotalDisplay: { collapseAt: 0 },
+          colSubtotalDisplay: { collapseAt: 0 },
+        },
+      }
+    : {};
+
   (jq(pivotContainer.value) as any).empty().pivotUI(
     plainData,
     {
@@ -153,8 +175,11 @@ const renderPivot = async () => {
       cols: (savedConfig.cols as string[]) ?? ["Tahun", "Bulan", "Jenis"],
       vals: (savedConfig.vals as string[]) ?? ["Nilai"],
       aggregatorName: (savedConfig.aggregatorName as string) ?? "Sum",
-      rendererName: (savedConfig.rendererName as string) ?? "Table",
+      rendererName:
+        (savedConfig.rendererName as string) ??
+        (pu ? "Table With Subtotal" : "Table"),
       hiddenAttributes: [],
+      ...subtotalOpts,
       onRefresh: (config: Record<string, unknown>) => {
         localStorage.setItem(
           "pivot_config_list_jurnal",
@@ -165,6 +190,29 @@ const renderPivot = async () => {
     },
     true
   );
+
+  // Posisikan kotak filter tepat di bawah field ▾ yang diklik.
+  // Handler delegated pada container (dipanggil setelah handler internal
+  // pivot yang me-show box) — box fixed, jadi cukup koordinat viewport.
+  jq(pivotContainer.value)
+    .off("click.pivotFilterPos")
+    .on("click.pivotFilterPos", ".pvtTriangle", (ev: any) => {
+      if (!pivotContainer.value) return;
+      const rect = (ev.currentTarget as HTMLElement).getBoundingClientRect();
+      const boxes = pivotContainer.value.querySelectorAll<HTMLElement>(
+        ".pvtFilterBox"
+      );
+      for (const box of boxes) {
+        if (box.style.display === "none") continue;
+        const left = Math.min(
+          Math.max(rect.left - (300 - rect.width) / 2, 8),
+          window.innerWidth - 308
+        );
+        const top = Math.min(rect.bottom + 6, window.innerHeight - 60);
+        box.style.left = `${Math.round(left)}px`;
+        box.style.top = `${Math.round(top)}px`;
+      }
+    });
 };
 
 const resetPivotConfig = () => {
@@ -526,7 +574,8 @@ const doExportPivot = async () => {
       :items="items"
       :is-loading="isLoading"
       :fixed-layout="false"
-      item-value="Nomor"
+      item-value="RowKey"
+      :summary-columns="summaryColumns"
       :filter-values="filterValues"
       @refresh="loadData"
     >
@@ -977,7 +1026,13 @@ const doExportPivot = async () => {
 
 <style>
 /* ── Pivot Filter Dialog ── */
+/* Box filter fixed agar tidak "terlempar" di layout bersarang;
+   posisi tepat di bawah field diatur oleh handler click pivotFilterPos */
 .pvtFilterBox {
+  position: fixed !important;
+  width: 300px !important;
+  max-height: 420px !important;
+  overflow: auto !important;
   background: white !important;
   border: 1px solid #e5e7eb !important;
   border-radius: 8px !important;

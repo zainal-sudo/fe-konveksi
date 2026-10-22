@@ -50,6 +50,16 @@ const emptyForm = (): PenjualanForm => ({
   discFaktur: 0,
   amount: 0,
   taxAmount: 0,
+  ongkir: 0,
+  bayar: 0, // cash/tunai diterima
+  kembali: 0,
+  dp: 0,
+  voucher: 0,
+  noVoucher: "",
+  card: 0,
+  noCard: "",
+  bankCard: "",
+  piutang: 0,
   dateline: today,
   cusTop: 0,
   pemesan: "",
@@ -158,6 +168,59 @@ const searchBarang = async (query: string) => {
   }
 };
 
+// ── Pembayaran multi-jenis (pola kasir minimarket) ───────────────────
+// Total tagihan = amount (hasil calcTotal, termasuk PPN bila ada) + ongkir.
+// Jalur: cash (form.bayar) + voucher + card + piutang.
+// Kembalian live = total semua jalur - total tagihan (dibatasi >= 0).
+// Kas masuk laci (dp) = cash - kembalian, min 0.
+const grandTotal = computed(() => (form.value.amount || 0) + (Number(form.value.ongkir) || 0));
+const totalBayarJalan = computed(() => {
+  return (
+    (Number(form.value.bayar) || 0) +
+    (Number(form.value.voucher) || 0) +
+    (Number(form.value.card) || 0) +
+    (Number(form.value.piutang) || 0)
+  );
+});
+const uangKembalian = computed(() => {
+  const k = totalBayarJalan.value - grandTotal.value;
+  return k > 0 ? k : 0;
+});
+const kasNeto = computed(() => Math.max(0, (Number(form.value.bayar) || 0) - uangKembalian.value));
+
+// ── Thousand separator untuk input pembayaran (cash/voucher/card/piutang) ──
+const PAY_KEYS = ["bayar", "voucher", "card", "piutang"] as const;
+type PayKey = (typeof PAY_KEYS)[number];
+
+const payDisplays = ref<Record<PayKey, string>>({
+  bayar: "",
+  voucher: "",
+  card: "",
+  piutang: "",
+});
+
+const fmtNum = (v: number) => {
+  const n = Number(v) || 0;
+  return n ? new Intl.NumberFormat("id-ID").format(n) : "";
+};
+
+const onPayInput = (key: PayKey, e: Event) => {
+  const raw = ((e.target as HTMLInputElement).value || "").replace(/[^0-9]/g, "");
+  const num = Number(raw || 0);
+  form.value[key] = num;
+  payDisplays.value[key] = fmtNum(num);
+};
+
+// Sinkronkan tampilan saat data form dimuat (mode edit) atau direset
+watch(
+  () => [form.value.bayar, form.value.voucher, form.value.card, form.value.piutang],
+  () => {
+    for (const k of PAY_KEYS) {
+      payDisplays.value[k] = fmtNum(Number(form.value[k]) || 0);
+    }
+  }
+);
+
 const recalcDateline = () => {
   const top = Number(form.value.cusTop) || 0;
   if (!top || !form.value.tanggal) return;
@@ -173,7 +236,7 @@ const selectCustomer = (cus: any) => {
   form.value.cusNama = cus.nama || cus.Nama || cus.cusNama || "";
   form.value.cusAlamat = cus.alamat || cus.Alamat || "";
   form.value.cusTelp = cus.telp || cus.Telp || "";
-  form.value.cusTop = Number(cus.top ?? cus.Top ?? cus.cusTop ?? 0);
+  form.value.cusTop = Number(cus.top ?? cus.Top ?? 0);
   showCustomerModal.value = false;
   recalcDateline();
 };
@@ -222,7 +285,13 @@ const selectBarang = (brg: any) => {
     d.brgNama = brg.nama || brg.Nama || brg.brgNama || "";
     d.barcode = brg.barcode || brg.Barcode || "";
     d.satuan = brg.satuan || brg.Satuan || "";
-    d.harga = Number(brg.hrgJual ?? brg.hrgBeli ?? 0);
+    // Harga jual dari master barang; kosong(0) → fallback harga beli master
+    const hrgJual = Number(brg.hrgJual ?? brg.HrgJual ?? 0);
+    const hrgBeli = Number(brg.hrgBeli ?? brg.HrgBeli ?? 0);
+    d.harga = hrgJual > 0 ? hrgJual : hrgBeli;
+    if (d.harga <= 0) {
+      toast.info(`Master barang ${d.brgNama ?? d.brgKode} belum punya harga jual. Isi harga manual.`);
+    }
     d.discPr = 0;
     d.isiCrt = brg.isiCrt || 1;
     d.isiLsn = brg.isiLsn || 1;
@@ -245,7 +314,13 @@ const onBarangModalClose = () => {
 };
 
 watch(showBarangModal, (val) => {
-  if (!val) onBarangModalClose();
+  if (val) searchBarang("");
+  else onBarangModalClose();
+});
+
+// Modal customer selalu muat ulang daftar saat dibuka supaya customer baru langsung muncul
+watch(showCustomerModal, (val) => {
+  if (val) searchCustomer("");
 });
 
 const removeRow = (index: number) => {
@@ -257,10 +332,13 @@ const removeRow = (index: number) => {
 const loadData = async () => {
   const nomor = route.params.nomor as string;
   if (!nomor) {
-    form.value.isEdit = false;
+    // mode create: selalu mulai dari form kosong (jaga agar tidak ada sisa isian lama)
+    form.value = emptyForm();
     return;
   }
 
+  // mode edit: mulai dari form kosong dulu supaya tidak ada sisa isian lama
+  form.value = emptyForm();
   isLoading.value = true;
   try {
     form.value.isEdit = true;
@@ -280,7 +358,7 @@ const resetForm = () => {
   router.replace({ name: "penjualanCreate" }).catch(() => {});
 };
 
-const validateSave = (): boolean => {
+  const validateSave = (): boolean => {
   if (!form.value.cusKode) {
     toast.warning("Customer harus dipilih.");
     return false;
@@ -296,6 +374,20 @@ const validateSave = (): boolean => {
     }
     if ((d.qty || 0) <= 0) {
       toast.warning(`Qty untuk ${d.brgNama} harus lebih dari 0.`);
+      return false;
+    }
+  }
+  calcTotal();
+  if (totalBayarJalan.value < grandTotal.value) {
+    toast.warning(
+      `Total pembayaran (${fmtCurrency(totalBayarJalan.value)}) kurang dari total tagihan (${fmtCurrency(grandTotal.value)}).`,
+    );
+    return false;
+  }
+  if ((Number(form.value.piutang) || 0) > 0) {
+    const nama = (form.value.cusNama || "").toLowerCase();
+    if (form.value.cusKode === "PU" || nama.includes("umum")) {
+      toast.warning("Penjualan PIUTANG tidak boleh untuk customer UMUM. Pilih customer terlebih dahulu.");
       return false;
     }
   }
@@ -320,6 +412,8 @@ const confirmSave = async () => {
   isNewMode ? (isSavingNew.value = true) : (isSaving.value = true);
   
   try {
+    form.value.kembali = uangKembalian.value;
+    form.value.dp = kasNeto.value;
     const res = await penjualanFormApi.save(form.value);
     toast.success("Penjualan berhasil disimpan.");
     savedNomor.value = res?.nomor || res?.data?.nomor || form.value.nomor;
@@ -347,14 +441,22 @@ const confirmSave = async () => {
 
 const confirmCancel = () => {
   showCancelDialog.value = false;
+  // reset + tutup tab supaya saat dibuka lagi selalu mount fresh
+  // (tab keep-alive dengan form kosong bisa terjadi input ulang => nota ganda)
+  form.value = emptyForm();
+  const targetPath = route.path;
   router.push({ name: "penjualanBrowse" });
+  nextTick().then(() => tabsStore.closeTab(targetPath));
 };
 
 const confirmClose = async () => {
   showCloseDialog.value = false;
+  // reset form supaya saat form dibuka lagi bersih (mode create)
+  form.value = emptyForm();
   const targetPath = route.path; // ✅ Ambil path halaman form aktif saat ini
   router.push({ name: "penjualanBrowse" }); // Pindah ke halaman list/browse
   await nextTick();
+
   tabsStore.closeTab(targetPath); // ✅ Tutup tab berdasarkan path form tersebut
 };
 
@@ -362,6 +464,19 @@ onMounted(() => {
   loadData();
   loadSearchOptions();
 });
+
+// Tab keep-alive: saat tab form yang sama dibuka lagi (nomor beda / dari browse),
+// muat ulang data supaya form tidak memakai state lama (penyebab nota ganda).
+watch(
+  () => route.params.nomor,
+  () => loadData()
+);
+watch(
+  () => route.path,
+  (nv, ov) => {
+    if (nv !== ov) loadData();
+  }
+);
 
 const fmtCurrency = (v: number) =>
   new Intl.NumberFormat("id-ID", { minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(v || 0);
@@ -437,6 +552,11 @@ const fmtNumber = (v: number) => new Intl.NumberFormat("id-ID").format(v || 0);
               <option :value="2">Pajak (PPN)</option>
             </select>
           </div>
+
+          <div class="f-row">
+            <label class="f-lbl">Ongkir</label>
+            <input type="number" v-model.number="form.ongkir" min="0" class="f-inp-native tr" placeholder="0" />
+          </div>
         </div>
 
         <div class="supplier-info-card" v-if="hasCustomerDetail">
@@ -454,6 +574,86 @@ const fmtNumber = (v: number) => new Intl.NumberFormat("id-ID").format(v || 0);
           <label class="f-lbl mt-1">Catatan / Memo</label>
           <textarea v-model="form.memo" class="f-txa-native" rows="2" placeholder="Catatan / Memo Faktur..."></textarea>
         </div>
+        <div class="detail-section mt-2" style="width: 100%;">
+        <div class="d-flex align-center justify-between mb-2">
+          <div class="section-title">Detail Item Barang / Jasa</div>
+          <v-btn size="x-small" color="green-darken-3" class="font-weight-bold text-white" @click="openAddBarang">
+            <IconPlus :size="12" class="mr-1" /> Tambah Barang
+          </v-btn>
+        </div>
+
+        <div class="detail-table-wrap">
+          <table class="detail-table">
+            <thead>
+              <tr>
+                <th class="tc" style="width: 40px;">NO</th>
+                <th style="width: 130px;">BARCODE / KODE</th>
+                <th style="min-width: 180px;">NAMA ITEM BARANG</th>
+                <th style="width: 80px;" class="tc">SATUAN</th>
+                <th style="width: 70px;" class="tr">QTY</th>
+                <th style="width: 120px;" class="tr">HARGA JUAL</th>
+                <th style="width: 70px;" class="tr">DISC (%)</th>
+                <th style="min-width: 150px;">KETERANGAN</th>
+                <th style="width: 130px;" class="tr">SUBTOTAL</th>
+                <th class="tc" style="width: 50px;">AKSI</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="(row, idx) in form.detail" :key="idx">
+                <td class="tc font-weight-bold color-grey">{{ idx + 1 }}</td>
+                <td>
+                  <div class="cell-search-group" @click="openSearchBarang(idx)">
+                    <input type="text" :value="row.brgKode || row.barcode" class="cell-inp readonly-bg" readonly placeholder="Klik cari..." />
+                    <button class="cell-btn-search" type="button" @click.stop="openSearchBarang(idx)">
+                      <IconSearch :size="12" />
+                    </button>
+                  </div>
+                </td>
+                <td>
+                  <input type="text" v-model="row.brgNama" class="cell-inp font-weight-bold text-grey-darken-4" placeholder="Nama/Deskripsi Item..." />
+                </td>
+                <td>
+                  <input type="text" v-model="row.satuan" class="cell-inp tc readonly-bg" readonly placeholder="Pcs/Box" />
+                </td>
+                <td>
+                  <input type="number" v-model.number="row.qty" class="cell-inp tr text-blue font-weight-bold" @input="calcTotal" min="1" />
+                </td>
+                <td>
+                  <div class="cell-currency-wrap">
+                    <span class="cell-currency-prefix">Rp</span>
+                    <input type="number" v-model.number="row.harga" class="cell-inp cell-inp-currency tr text-green-darken-4 font-weight-bold" @input="calcTotal" placeholder="0" />
+                  </div>
+                </td>
+                <td>
+                  <input type="number" v-model.number="row.discPr" class="cell-inp tr text-red font-weight-bold" @input="calcTotal" min="0" max="100" />
+                </td>
+                <td>
+                  <input type="text" v-model="row.keterangan" class="cell-inp text-grey-darken-2" placeholder="Catatan item..." />
+                </td>
+                <td class="tr pr-2 font-weight-bold" :class="rowSubtotal(row) < 0 ? 'val-red' : 'val-green'">
+                  Rp {{ fmtCurrency(rowSubtotal(row)) }}
+                </td>
+                <td class="tc">
+                  <button class="cell-btn-delete" type="button" @click="removeRow(idx)">
+                    <IconTrash :size="13" />
+                  </button>
+                </td>
+              </tr>
+              <tr v-if="form.detail.length === 0">
+                <td colspan="10" class="tc pa-4 text-grey style-italic">Belum ada item barang. Silakan klik tombol "Tambah Barang".</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="grid-total-bar" v-if="form.detail.length > 0">
+          <span>Total Item: <strong>{{ totalBaris }}</strong></span>
+          <span class="divider">|</span>
+          <span>Total Qty: <strong>{{ fmtNumber(totalQty) }}</strong></span>
+          <span class="divider">|</span>
+          <span>Total Subtotal Bruto: <strong :class="subtotalBruto < 0 ? 'val-red' : 'val-green'">Rp {{ fmtCurrency(subtotalBruto) }}</strong></span>
+        </div>
+      </div>
       </div>
 
       <div class="header-summary">
@@ -503,90 +703,71 @@ const fmtNumber = (v: number) => new Intl.NumberFormat("id-ID").format(v || 0);
             <span>Nilai PPN Pajak :</span>
             <span class="font-weight-bold text-orange-darken-4">Rp {{ fmtCurrency(form.taxAmount) }}</span>
           </div>
+
+          <div class="sub-total-item">
+            <span>Ongkir :</span>
+            <span class="font-weight-bold">Rp {{ fmtCurrency(Number(form.ongkir) || 0) }}</span>
+          </div>
+
+          <div class="sub-total-item pay-row">
+            <span>GRAND TOTAL :</span>
+            <span class="font-weight-bold" style="color:#3B5998;">Rp {{ fmtCurrency(grandTotal) }}</span>
+          </div>
+        </div>
+
+        <!-- Panel pembayaran multi-jenis (pola kasir minimarket) -->
+        <div class="pay-panel">
+          <div class="pay-title">PEMBAYARAN</div>
+
+          <div class="pay-field">
+            <label class="cash-lbl">1. CASH / TUNAI</label>
+            <div class="pay-input-wrap wrap-cash">
+              <span class="pay-prefix">Rp</span>
+              <input type="text" inputmode="numeric" :value="payDisplays.bayar" @input="onPayInput('bayar', $event)" class="pay-input" placeholder="0" />
+            </div>
+          </div>
+
+          <div class="pay-field">
+            <label class="voucher-lbl">2. VOUCHER</label>
+            <div class="pay-extra">
+              <div class="pay-input-wrap wrap-voucher">
+                <span class="pay-prefix">Rp</span>
+                <input type="text" inputmode="numeric" :value="payDisplays.voucher" @input="onPayInput('voucher', $event)" class="pay-input pay-inp-sm" placeholder="0" />
+              </div>
+              <input type="text" v-model="form.noVoucher" class="pay-text-inp" placeholder="No. Voucher" />
+            </div>
+          </div>
+
+          <div class="pay-field">
+            <label class="card-lbl">3. CARD / DEBIT / KREDIT</label>
+            <div class="pay-extra">
+              <div class="pay-input-wrap wrap-card">
+                <span class="pay-prefix">Rp</span>
+                <input type="text" inputmode="numeric" :value="payDisplays.card" @input="onPayInput('card', $event)" class="pay-input pay-inp-sm" placeholder="0" />
+              </div>
+              <div class="pay-extra-cols">
+                <input type="text" v-model="form.noCard" class="pay-text-inp" placeholder="No. Kartu" />
+                <input type="text" v-model="form.bankCard" class="pay-text-inp" placeholder="Nama Bank" />
+              </div>
+            </div>
+          </div>
+
+          <div class="pay-field">
+            <label class="piutang-lbl">4. PIUTANG / BON</label>
+            <div class="pay-input-wrap wrap-piutang">
+              <span class="pay-prefix">Rp</span>
+              <input type="text" inputmode="numeric" :value="payDisplays.piutang" @input="onPayInput('piutang', $event)" class="pay-input" placeholder="0" />
+            </div>
+          </div>
+
+          <div class="pay-change-row" :class="{ 'pay-short': totalBayarJalan < grandTotal }">
+            <span class="pay-change-lbl">KEMBALIAN</span>
+            <span class="pay-change-val">Rp {{ fmtCurrency(uangKembalian) }}</span>
+          </div>
         </div>
       </div>
     </div>
 
-    <div class="detail-section mt-4">
-      <div class="d-flex align-center justify-between mb-2">
-        <div class="section-title">Detail Item Barang / Jasa</div>
-        <v-btn size="x-small" color="green-darken-3" class="font-weight-bold text-white" @click="openAddBarang">
-          <IconPlus :size="12" class="mr-1" /> Tambah Barang
-        </v-btn>
-      </div>
-
-      <div class="detail-table-wrap">
-        <table class="detail-table">
-          <thead>
-            <tr>
-              <th class="tc" style="width: 40px;">NO</th>
-              <th style="width: 130px;">BARCODE / KODE</th>
-              <th style="min-width: 180px;">NAMA ITEM BARANG</th>
-              <th style="width: 80px;" class="tc">SATUAN</th>
-              <th style="width: 70px;" class="tr">QTY</th>
-              <th style="width: 120px;" class="tr">HARGA JUAL</th>
-              <th style="width: 70px;" class="tr">DISC (%)</th>
-              <th style="min-width: 150px;">KETERANGAN</th>
-              <th style="width: 130px;" class="tr">SUBTOTAL</th>
-              <th class="tc" style="width: 50px;">AKSI</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="(row, idx) in form.detail" :key="idx">
-              <td class="tc font-weight-bold color-grey">{{ idx + 1 }}</td>
-              <td>
-                <div class="cell-search-group" @click="openSearchBarang(idx)">
-                  <input type="text" :value="row.brgKode || row.barcode" class="cell-inp readonly-bg" readonly placeholder="Klik cari..." />
-                  <button class="cell-btn-search" type="button" @click.stop="openSearchBarang(idx)">
-                    <IconSearch :size="12" />
-                  </button>
-                </div>
-              </td>
-              <td>
-                <input type="text" v-model="row.brgNama" class="cell-inp font-weight-bold text-grey-darken-4" placeholder="Nama/Deskripsi Item..." />
-              </td>
-              <td>
-                <input type="text" v-model="row.satuan" class="cell-inp tc readonly-bg" readonly placeholder="Pcs/Box" />
-              </td>
-              <td>
-                <input type="number" v-model.number="row.qty" class="cell-inp tr text-blue font-weight-bold" @input="calcTotal" min="1" />
-              </td>
-              <td>
-                <div class="cell-currency-wrap">
-                  <span class="cell-currency-prefix">Rp</span>
-                  <input type="number" v-model.number="row.harga" class="cell-inp cell-inp-currency tr text-green-darken-4 font-weight-bold" @input="calcTotal" placeholder="0" />
-                </div>
-              </td>
-              <td>
-                <input type="number" v-model.number="row.discPr" class="cell-inp tr text-red font-weight-bold" @input="calcTotal" min="0" max="100" />
-              </td>
-              <td>
-                <input type="text" v-model="row.keterangan" class="cell-inp text-grey-darken-2" placeholder="Catatan item..." />
-              </td>
-              <td class="tr pr-2 font-weight-bold" :class="rowSubtotal(row) < 0 ? 'val-red' : 'val-green'">
-                Rp {{ fmtCurrency(rowSubtotal(row)) }}
-              </td>
-              <td class="tc">
-                <button class="cell-btn-delete" type="button" @click="removeRow(idx)">
-                  <IconTrash :size="13" />
-                </button>
-              </td>
-            </tr>
-            <tr v-if="form.detail.length === 0">
-              <td colspan="10" class="tc pa-4 text-grey style-italic">Belum ada item barang. Silakan klik tombol "Tambah Barang".</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-
-      <div class="grid-total-bar" v-if="form.detail.length > 0">
-        <span>Total Item: <strong>{{ totalBaris }}</strong></span>
-        <span class="divider">|</span>
-        <span>Total Qty: <strong>{{ fmtNumber(totalQty) }}</strong></span>
-        <span class="divider">|</span>
-        <span>Total Subtotal Bruto: <strong :class="subtotalBruto < 0 ? 'val-red' : 'val-green'">Rp {{ fmtCurrency(subtotalBruto) }}</strong></span>
-      </div>
-    </div>
 
     <v-dialog v-model="showSaveDialog" max-width="320">
       <v-card rounded="lg">
@@ -654,7 +835,7 @@ const fmtNumber = (v: number) => new Intl.NumberFormat("id-ID").format(v || 0);
 <style scoped>
 .form-header-grid {
   display: grid;
-  grid-template-columns: 1fr 380px;
+  grid-template-columns: 1fr 330px;
   gap: 20px;
   align-items: start;
 }
@@ -859,6 +1040,37 @@ const fmtNumber = (v: number) => new Intl.NumberFormat("id-ID").format(v || 0);
 .text-red {
   color: #ef4444;
 }
+
+.pay-row { border-top: 1px solid #e5e7eb; padding-top: 5px; }
+.pay-panel { margin-top: 8px; border: 1px solid #bfd3ee; border-radius: 6px; padding: 8px; background: #eef2ff; }
+.pay-title { font-size: 10px; font-weight: 800; color: #3B5998; letter-spacing: .5px; margin-bottom: 6px; }
+.pay-field { display: flex; flex-direction: column; gap: 3px; margin-bottom: 6px; }
+.pay-field > label { font-size: 10.5px; font-weight: 700; }
+.cash-lbl { color: #15803d; }
+.voucher-lbl { color: #1d4ed8; }
+.card-lbl { color: #7e22ce; }
+.piutang-lbl { color: #dc2626; }
+.pay-extra { display: flex; flex-direction: column; gap: 4px; }
+.pay-extra-cols { display: flex; gap: 4px; }
+.pay-text-inp { flex: 1; min-width: 0; height: 24px; border: 1px solid #d1d5db; border-radius: 4px; padding: 0 6px; font-size: 10.5px; outline: none; }
+.pay-text-inp:focus { border-color: #3B5998; }
+.pay-inp-sm { font-size: 11px; font-weight: 700; }
+.wrap-cash .pay-input { background: #f0fdf4; color: #15803d; }
+.wrap-voucher .pay-input { background: #eff6ff; color: #1d4ed8; }
+.wrap-card .pay-input { background: #faf5ff; color: #7e22ce; }
+.wrap-piutang .pay-input { background: #fef2f2; color: #dc2626; }
+.wrap-cash { border-color: #9ae6b4; }
+.wrap-voucher { border-color: #93c5fd; }
+.wrap-card { border-color: #d8b4fe; }
+.wrap-piutang { border-color: #fca5a5; }
+.pay-input-wrap { display: flex; align-items: center; flex: 1; background: #fff; border: 1px solid #d1d5db; border-radius: 4px; height: 28px; overflow: hidden; }
+.pay-input-wrap:focus-within { border-color: #3B5998; }
+.pay-prefix { padding: 0 6px; font-size: 10px; font-weight: 700; color: #6b7280; background: #f3f4f6; height: 100%; display: flex; align-items: center; border-right: 1px solid #d1d5db; }
+.pay-input { flex: 1; min-width: 0; height: 100%; border: none; outline: none; padding: 0 8px; font-size: 13px; font-weight: 700; text-align: right; }
+.pay-change-row { display: flex; justify-content: space-between; align-items: center; margin-top: 7px; padding: 6px 8px; background: #14532d; color: #bbf7d0; border-radius: 4px; }
+.pay-short { background: #7f1d1d; color: #fecaca; } /* uang diterima kurang dari total */
+.pay-change-lbl { font-size: 10px; font-weight: 700; letter-spacing: .5px; }
+.pay-change-val { font-size: 16px; font-weight: 800; font-variant-numeric: tabular-nums; }
 
 .section-title {
   font-size: 11px;

@@ -436,9 +436,7 @@ const router = createRouter({
 	  
 	},
     {
-      path: "/transaksi/penjualan/form",
-      redirect: { name: "penjualanCreate" },
-    },
+      path: "/transaksi/penjualan/edit/:nomor",
       name: "penjualanEdit",
       component: () => import("@/views/transaksi/penjualanFormView.vue"),
       meta: {
@@ -449,7 +447,44 @@ const router = createRouter({
         browseRoute: "penjualanBrowse",
       },
     },
-    // MUTASI OUT
+    // PEMBAYARAN CUSTOMER (tbayarcus_* di DB minimarket)
+    {
+      path: "/transaksi/bayarCustomer",
+      name: "BayarCustomerBrowse",
+      component: () => import("@/views/transaksi/BayarCustomerView.vue"),
+      meta: {
+        layout: "DefaultLayout",
+        requiresAuth: true,
+        menuId: "51",
+        title: "Pembayaran Customer",
+        browseRoute: "BayarCustomerBrowse",
+      },
+    },
+    {
+      path: "/transaksi/bayarCustomer/baru",
+      name: "BayarCustomerCreate",
+      component: () => import("@/views/transaksi/BayarCustomerForm.vue"),
+      meta: {
+        layout: "DefaultLayout",
+        requiresAuth: true,
+        menuId: "51",
+        title: "Tambah Pembayaran Customer",
+        browseRoute: "BayarCustomerBrowse",
+      },
+    },
+    {
+      path: "/transaksi/bayarCustomer/ubah/:nomor",
+      name: "BayarCustomerEdit",
+      component: () => import("@/views/transaksi/BayarCustomerForm.vue"),
+      meta: {
+        layout: "DefaultLayout",
+        requiresAuth: true,
+        menuId: "51",
+        title: "Ubah Pembayaran Customer",
+        browseRoute: "BayarCustomerBrowse",
+      },
+    },
+    // MUTASI OUT (antar cabang — tmutcab_*)
     {
       path: "/transaksi/mutasi-out",
       name: "MutasiOut",
@@ -457,8 +492,8 @@ const router = createRouter({
       meta: {
         layout: "DefaultLayout",
         requiresAuth: true,
-        menuId: "31",
-        title: "Mutasi Out Garmen",
+        menuId: "15",
+        title: "Mutasi Cabang Out",
       },
     },
     {
@@ -468,7 +503,7 @@ const router = createRouter({
       meta: {
         layout: "DefaultLayout",
         requiresAuth: true,
-        menuId: "31",
+        menuId: "15",
         title: "Buat Mutasi Out",
         browseRoute: "MutasiOut",
       },
@@ -480,57 +515,184 @@ const router = createRouter({
       meta: {
         layout: "DefaultLayout",
         requiresAuth: true,
-        menuId: "31",
+        menuId: "15",
         title: "Ubah Mutasi Out",
         browseRoute: "MutasiOut",
       },
     },
+
+    // MUTASI IN (penerimaan antar cabang — tmutcabin_*)
     {
-      path: "/transaksi/mutasi-out/print/:nomor",
-      name: "MutasiOutPrint",
-      component: () => import("@/views/transaksi/MutasiOutPrintView.vue"),
+      path: "/transaksi/mutasi-in",
+      name: "MutasiIn",
+      component: () => import("@/views/transaksi/MutasiInView.vue"),
       meta: {
-        layout: "BlankLayout",
+        layout: "DefaultLayout",
         requiresAuth: true,
-        title: "Cetak Mutasi Out",
+        menuId: "17",
+        title: "Mutasi Cabang In",
+      },
+    },
+    {
+      path: "/transaksi/mutasi-in/create",
+      name: "MutasiInCreate",
+      component: () => import("@/views/transaksi/MutasiInFormView.vue"),
+      meta: {
+        layout: "DefaultLayout",
+        requiresAuth: true,
+        menuId: "17",
+        title: "Terima Mutasi Cabang",
+        browseRoute: "MutasiIn",
+      },
+    },
+    {
+      path: "/transaksi/mutasi-in/edit/:nomor",
+      name: "MutasiInEdit",
+      component: () => import("@/views/transaksi/MutasiInFormView.vue"),
+      meta: {
+        layout: "DefaultLayout",
+        requiresAuth: true,
+        menuId: "17",
+        title: "Ubah Mutasi In",
+        browseRoute: "MutasiIn",
       },
     },
 
   
-    // Jurnal Umum
+    // ── Accounting ────────────────────────────────────────────────────
     {
-      path: "/transaksi/jurnal-umum",
-      name: "JurnalUmumBrowse",
-      component: () => import("@/views/transaksi/JurnalUmumView.vue"),
+      path: "/accounting/jurnal-umum",
+      name: "AccountingJurnalUmumBrowse",
+      component: () => import("@/views/accounting/JurnalUmumView.vue"),
       meta: {
         layout: "DefaultLayout",
         requiresAuth: true,
-        menuId: "26",
+        menuId: "41",
         title: "Jurnal Umum",
       },
     },
     {
-      path: "/transaksi/jurnal-umum/create",
-      name: "JurnalUmumCreate",
-      component: () => import("@/views/transaksi/JurnalUmumFormView.vue"),
+      path: "/accounting/jurnal-umum/create",
+      name: "AccountingJurnalUmumCreate",
+      component: () => import("@/views/accounting/JurnalUmumFormView.vue"),
       meta: {
         layout: "DefaultLayout",
         requiresAuth: true,
-        menuId: "26",
+        menuId: "41",
         title: "Tambah Jurnal Umum",
-        browseRoute: "JurnalUmumBrowse",
+        browseRoute: "AccountingJurnalUmumBrowse",
       },
     },
     {
-      path: "/transaksi/jurnal-umum/edit/:nomor",
-      name: "JurnalUmumEdit",
-      component: () => import("@/views/transaksi/JurnalUmumFormView.vue"),
+      path: "/accounting/jurnal-umum/edit/:nomor",
+      name: "AccountingJurnalUmumEdit",
+      component: () => import("@/views/accounting/JurnalUmumFormView.vue"),
       meta: {
         layout: "DefaultLayout",
         requiresAuth: true,
-        menuId: "26",
+        menuId: "41",
         title: "Ubah Jurnal Umum",
-        browseRoute: "JurnalUmumBrowse",
+        browseRoute: "AccountingJurnalUmumBrowse",
+      },
+    },
+    {
+      path: "/accounting/jurnal-umum/print/:nomor",
+      name: "AccountingJurnalUmumPrint",
+      component: () => import("@/views/accounting/JurnalUmumPrintView.vue"),
+      meta: {
+        layout: "BlankLayout",
+        requiresAuth: true,
+        title: "Cetak Jurnal Umum",
+      },
+    },
+    {
+      path: "/accounting/pembayaran-lain",
+      name: "AccountingPembayaranLainBrowse",
+      component: () => import("@/views/accounting/PembayaranLainView.vue"),
+      meta: {
+        layout: "DefaultLayout",
+        requiresAuth: true,
+        menuId: "24",
+        title: "Pembayaran Lain Lain",
+      },
+    },
+    {
+      path: "/accounting/pembayaran-lain/create",
+      name: "AccountingPembayaranLainCreate",
+      component: () => import("@/views/accounting/PembayaranLainFormView.vue"),
+      meta: {
+        layout: "DefaultLayout",
+        requiresAuth: true,
+        menuId: "24",
+        title: "Tambah Pembayaran Lain Lain",
+        browseRoute: "AccountingPembayaranLainBrowse",
+      },
+    },
+    {
+      path: "/accounting/pembayaran-lain/edit/:nomor",
+      name: "AccountingPembayaranLainEdit",
+      component: () => import("@/views/accounting/PembayaranLainFormView.vue"),
+      meta: {
+        layout: "DefaultLayout",
+        requiresAuth: true,
+        menuId: "24",
+        title: "Ubah Pembayaran Lain Lain",
+        browseRoute: "AccountingPembayaranLainBrowse",
+      },
+    },
+    {
+      path: "/accounting/pembayaran-lain/print/:nomor",
+      name: "AccountingPembayaranLainPrint",
+      component: () => import("@/views/accounting/PembayaranLainPrintView.vue"),
+      meta: {
+        layout: "BlankLayout",
+        requiresAuth: true,
+        title: "Cetak Pembayaran Lain Lain",
+      },
+    },
+    {
+      path: "/accounting/penerimaan-lain",
+      name: "AccountingPenerimaanLainBrowse",
+      component: () => import("@/views/accounting/PenerimaanLainView.vue"),
+      meta: {
+        layout: "DefaultLayout",
+        requiresAuth: true,
+        menuId: "23",
+        title: "Penerimaan Lain Lain",
+      },
+    },
+    {
+      path: "/accounting/penerimaan-lain/create",
+      name: "AccountingPenerimaanLainCreate",
+      component: () => import("@/views/accounting/PenerimaanLainFormView.vue"),
+      meta: {
+        layout: "DefaultLayout",
+        requiresAuth: true,
+        menuId: "23",
+        title: "Tambah Penerimaan Lain Lain",
+        browseRoute: "AccountingPenerimaanLainBrowse",
+      },
+    },
+    {
+      path: "/accounting/penerimaan-lain/edit/:nomor",
+      name: "AccountingPenerimaanLainEdit",
+      component: () => import("@/views/accounting/PenerimaanLainFormView.vue"),
+      meta: {
+        layout: "DefaultLayout",
+        requiresAuth: true,
+        menuId: "23",
+        title: "Ubah Penerimaan Lain Lain",
+        browseRoute: "AccountingPenerimaanLainBrowse",
+      },
+    },
+    {
+      path: "/accounting/penerimaan-lain/print/:nomor",
+      name: "AccountingPenerimaanLainPrint",
+      component: () => import("@/views/accounting/PenerimaanLainPrintView.vue"),
+      meta: {
+        layout: "BlankLayout",
+        requiresAuth: true,
+        title: "Cetak Penerimaan Lain Lain",
       },
     },
     // Rekonsiliasi Bank
@@ -607,6 +769,16 @@ const router = createRouter({
       },
     },
     {
+      path: "/laporan/penjualan-item",
+      name: "LapPenjualanItem",
+      component: () => import("@/views/laporan/PenjualanItemView.vue"),
+      meta: {
+        layout: "DefaultLayout",
+        requiresAuth: true,
+        title: "Jual Per Item",
+      },
+    },
+    {
       path: "/laporan/kasbon-belum-selesai",
       name: "LapKasbonBelumSelesai",
       component: () => import("@/views/laporan/KasbonBelumSelesaiView.vue"),
@@ -644,6 +816,26 @@ const router = createRouter({
         layout: "DefaultLayout",
         requiresAuth: true,
         title: "Daftar Hutang",
+      },
+    },
+    {
+      path: "/laporan/neraca",
+      name: "LapNeraca",
+      component: () => import("@/views/laporan/NeracaView.vue"),
+      meta: {
+        layout: "DefaultLayout",
+        requiresAuth: true,
+        title: "Neraca",
+      },
+    },
+    {
+      path: "/laporan/laba-rugi",
+      name: "LapLabaRugi",
+      component: () => import("@/views/laporan/LabaRugiView.vue"),
+      meta: {
+        layout: "DefaultLayout",
+        requiresAuth: true,
+        title: "Laba Rugi",
       },
     },
 
@@ -728,6 +920,28 @@ router.beforeEach((to) => {
     !authStore.can(menuId, "view")
   )
     return { name: "Unauthorized", query: { from: to.fullPath } };
+
+  // ── Pembatasan user CABANG ('00' = pusat): hanya Penjualan + Mutasi (out/in).
+  // Sama daftarnya dengan menu di DefaultLayout — bertahan walau lewat URL langsung.
+  const cabang = authStore.userCabang || "00";
+  if (cabang !== "00" && authStore.isAuthenticated) {
+    const izinkanPrefix = [
+      "/",
+      "/transaksi/penjualan",
+      "/transaksi/mutasi-out",
+      "/transaksi/mutasi-in",
+      "/laporan/persediaan",
+      "/laporan/Persediaan",
+      "/laporan/penjualan-item",
+    ];
+    const okPath = izinkanPrefix.some(
+      (p) =>
+        p === "/"
+          ? to.path === "/"
+          : to.path === p || to.path.startsWith(p + "/"),
+    );
+    if (!okPath) return { name: "Unauthorized", query: { from: to.fullPath } };
+  }
 });
 
 // ── Auto-open Tab Bar ────────────────────────────────────────────────

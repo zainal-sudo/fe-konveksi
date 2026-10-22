@@ -10,7 +10,6 @@ import {
   IconPrinter,
   IconFileSpreadsheet,
   IconRefresh,
-  IconStatusChange,
 } from "@tabler/icons-vue";
 
 import { useQzPrint } from "@/composables/useQzPrint";
@@ -70,8 +69,10 @@ const headers = [
   { title: "PAJAK", key: "Pajak", width: "90px", align: "center" },
   { title: "TOTAL BELANJA", key: "Total", width: "140px", align: "end" },
   { title: "PPN", key: "Ppn", width: "120px", align: "end" },
-  { title: "STATUS", key: "Status", width: "100px", align: "center" },
-  { title: "KIRIM", key: "Kirim", width: "100px", align: "center" },
+  { title: "CASH", key: "Cash", width: "110px", align: "end" },
+  { title: "ONGKIR", key: "Ongkir", width: "110px", align: "end" },
+  { title: "PIUTANG", key: "Piutang", width: "110px", align: "end" },
+  { title: "CARD", key: "Card", width: "110px", align: "end" },
 ];
 
 const loadData = async () => {
@@ -167,26 +168,7 @@ const onHapus = async () => {
   }
 };
 
-const onUpdateStatus = async () => {
-  if (!selectedItem.value) {
-    toast.warning("Pilih data terlebih dahulu.");
-    return;
-  }
-  const current = selectedItem.value.Status;
-  const target = current === "Closed" ? "Open" : "Closed";
-
-  if (!confirm(`Ubah status penjualan ${selectedItem.value.Nomor} dari "${current}" menjadi "${target}"?`)) return;
-
-  try {
-    const res = await penjualanApi.updateStatus(selectedItem.value.Nomor);
-    toast.success(res.message || `Status penjualan berhasil diubah menjadi ${target}.`);
-    await loadData();
-  } catch (e: any) {
-    toast.error(e.response?.data?.message || "Gagal mengubah status penjualan.");
-  }
-};
-
-// ── Cetak PO (Dot Matrix / QZ Tray sama seperti SO) ───────────────────
+// ── Cetak Faktur Penjualan (Dot Matrix / QZ Tray) ───────────────────────
 const isPrinting = ref(false);
 const showPrinterDialog = ref(false);
 const showPreviewDialog = ref(false);
@@ -194,7 +176,9 @@ const previewLines = ref<string[]>([]);
 const cachedPrintData = ref<any | null>(null);
 
 const LINES_PER_PAGE = 33;
-const DATA_PER_PAGE = 13;
+const DATA_PER_PAGE = 10;
+// header 10 baris + data + separator = 21 baris, sisa diisi agar baris berikutnya tepat di halaman baru
+const PAGE_FILL = LINES_PER_PAGE - (10 + DATA_PER_PAGE + 1);
 const totalW = 130;
 const colNo = 3, colKode = 12, colNama = 40, colSat = 10, colQty = 10, colDisc = 10, colHrg = 14, colTotal = 15;
 
@@ -209,30 +193,9 @@ const fmtFloat = (v: number) => new Intl.NumberFormat("en-US", {
   maximumFractionDigits: 2,
 }).format(v || 0);
 
-const terbilang = (n: number): string => {
-  const val = Math.floor(Math.abs(n));
-  if (val === 0) return "NOL";
-  
-  const satuan = ["", "SATU", "DUA", "TIGA", "EMPAT", "LIMA", "ENAM", "TUJUH", "DELAPAN", "SEMBILAN", "SEPULUH", "SEBELAS"];
-  
-  const helper = (num: number): string => {
-    if (num < 12) return " " + satuan[Math.floor(num)];
-    if (num < 20) return helper(num - 10) + " BELAS";
-    if (num < 100) return helper(Math.floor(num / 10)) + " PULUH" + helper(num % 10);
-    if (num < 200) return " SERATUS" + helper(num - 100);
-    if (num < 1000) return helper(Math.floor(num / 100)) + " RATUS" + helper(num % 100);
-    if (num < 2000) return " SERIBU" + helper(num - 1000);
-    if (num < 1000000) return helper(Math.floor(num / 1000)) + " RIBU" + helper(num % 1000);
-    if (num < 1000000000) return helper(Math.floor(num / 1000000)) + " JUTA" + helper(num % 1000000);
-    return helper(Math.floor(num / 1000000000)) + " MILYAR" + helper(num % 1000000000);
-  };
-
-  return helper(val).trim();
-};
-
-const formatHeaderLinesSO = (data: any): string[] => {
+const formatHeaderLinesFaktur = (data: any): string[] => {
   return [
-    padRight(data.perusahaan.nama, 79) + " " + padRight("SALES ORDER", 40),
+    padRight(data.perusahaan.nama, 79) + " " + padRight("FAKTUR PENJUALAN", 40),
     padRight(data.perusahaan.alamat + ", " + data.perusahaan.kota, totalW),
     padRight(data.perusahaan.notelp, totalW),
     "",
@@ -245,7 +208,134 @@ const formatHeaderLinesSO = (data: any): string[] => {
   ];
 };
 
-const formatDetailLinePO = (i: number, d: any): string => {
+// ── Blok pembayaran & total (dua kolom: pembayaran | total) ───────────
+interface PrintMoneyLine {
+  label: string;
+  value: number;
+  note?: string;
+}
+
+const MONEY_LABEL_W = 14;
+const MONEY_VALUE_W = 15;
+const MONEY_COL_W = MONEY_LABEL_W + 1 + MONEY_VALUE_W; // 30 karakter
+// 4 kolom: pembayaran (kiri) | tanda tangan (tengah) | total (kanan)
+const PAY_COL_W = 34;
+const TOT_COL_W = 34;
+const SIG_COL_W = Math.floor((totalW - PAY_COL_W - TOT_COL_W) / 2); // 31 karakter
+
+const centerText = (text: string, width: number): string => {
+  const gap = Math.max(0, Math.floor((width - text.length) / 2));
+  return padRight(" ".repeat(gap) + text, width);
+};
+
+// Kolom kiri: pembayaran (sampai kembalian)
+const buildPaymentColumn = (data: any): PrintMoneyLine[] => {
+  const bayar = Number(data.bayar || 0);
+  const voucher = Number(data.voucher || 0);
+  const card = Number(data.card || 0);
+  const piutang = Number(data.piutang || 0);
+  const kembali = Number(data.kembali || 0);
+  const dp = Number(data.dp || 0);
+
+  const lines: PrintMoneyLine[] = [
+    { label: "Tunai         :", value: bayar },
+  ];
+  if (voucher !== 0)
+    lines.push({ label: "Voucher       :", value: voucher, note: data.noVoucher });
+  if (card !== 0)
+    lines.push({
+      label: "Card          :",
+      value: card,
+      note: [data.noCard, data.bankCard].filter(Boolean).join(" - "),
+    });
+  if (piutang !== 0) lines.push({ label: "Piutang       :", value: piutang });
+  lines.push({ label: "Kembalian     :", value: kembali });
+  if (dp !== 0) lines.push({ label: "Kas di Laci   :", value: dp });
+  return lines;
+};
+
+// Kolom kanan: diskon, total, ppn, ongkir, grand total
+const buildTotalColumn = (data: any): PrintMoneyLine[] => {
+  const total = Number(data.total || 0); // sudah termasuk pajak
+  const nilai = Number(data.nilai || total); // net sebelum pajak
+  const taxamount = Number(data.taxamount || 0);
+  const ongkir = Number(data.ongkir || 0);
+  const discFaktur = Number(data.discFaktur || 0);
+  const grandTotal = Number(data.grandTotal || total + ongkir);
+
+  const lines: PrintMoneyLine[] = [
+    { label: "Disc Faktur   :", value: discFaktur },
+    { label: "Total         :", value: nilai },
+    { label: "Ppn           :", value: taxamount },
+  ];
+  if (ongkir !== 0) lines.push({ label: "Ongkir        :", value: ongkir });
+  lines.push({ label: "Grand Total   :", value: grandTotal });
+  return lines;
+};
+
+// Baris ringkasan 4 kolom: pembayaran (kiri) | tanda tangan (tengah) | total (kanan)
+const buildSummaryRows = (data: any): string[] => {
+  const payCol = buildPaymentColumn(data);
+  const totCol = buildTotalColumn(data);
+  const rows: string[] = [];
+
+  // Judul kolom
+  rows.push(
+    padRight("PEMBAYARAN", PAY_COL_W) +
+      padRight("", SIG_COL_W * 2) +
+      padRight("TOTAL", TOT_COL_W)
+  );
+
+  const moneyPart = (m: PrintMoneyLine | undefined): string => {
+    if (!m) return padRight("", MONEY_COL_W);
+    return (
+      padRight(m.label, MONEY_LABEL_W) +
+      " " +
+      padLeft(fmtFloat(m.value), MONEY_VALUE_W)
+    );
+  };
+
+  const maxRows = Math.max(payCol.length, totCol.length);
+  for (let i = 0; i < maxRows; i++) {
+    // Label tanda tangan sejajar dengan baris "Tunai" (baris uang pertama)
+    let mid1 = "";
+    let mid2 = "";
+    if (i === 0) {
+      mid1 = centerText("Dibuat oleh,", SIG_COL_W);
+      mid2 = centerText("Mengetahui,", SIG_COL_W);
+    }
+    rows.push(
+      padRight(moneyPart(payCol[i]), PAY_COL_W) +
+        padRight(mid1, SIG_COL_W) +
+        padRight(mid2, SIG_COL_W) +
+        padRight(moneyPart(totCol[i]), TOT_COL_W)
+    );
+  }
+
+  // Nomor voucher / kartu (bila ada)
+  const notes: string[] = [];
+  if (data.noVoucher) notes.push("No. Voucher: " + data.noVoucher);
+  if (data.noCard)
+    notes.push(
+      "No. Card: " +
+        data.noCard +
+        (data.bankCard ? " (" + data.bankCard + ")" : "")
+    );
+  if (notes.length) rows.push(notes.join("  |  "));
+
+  // Ruang tanda tangan (kurung) tetap di bawah
+  rows.push(
+    padRight("", PAY_COL_W) +
+      padRight(centerText("(              )", SIG_COL_W), SIG_COL_W) +
+      padRight(centerText("(              )", SIG_COL_W), SIG_COL_W) +
+      padRight("", TOT_COL_W)
+  );
+
+  return rows;
+};
+
+
+const formatDetailLineFaktur = (i: number, d: any): string => {
   const qty = Number(d.qty || d.Qty || 0);
   const harga = Number(d.harga || d.Harga || 0);
   const discpr = Number(d.discPr || d.DiscPr || 0);
@@ -266,18 +356,18 @@ const formatDetailLinePO = (i: number, d: any): string => {
   );
 };
 
-const generatePreviewSO = (data: any): string[] => {
+const generatePreviewFaktur = (data: any): string[] => {
   const lines: string[] = [];
-  lines.push(...formatHeaderLinesSO(data));
+  lines.push(...formatHeaderLinesFaktur(data));
 
   let i = 0;
   for (const d of data.detail) {
     i++;
-    lines.push(formatDetailLinePO(i, d));
+    lines.push(formatDetailLineFaktur(i, d));
     if (i % DATA_PER_PAGE === 0 && i < data.detail.length) {
       lines.push("-".repeat(totalW));
-      for (let a = 0; a < 5; a++) lines.push("");
-      lines.push(...formatHeaderLinesSO(data));
+      for (let a = 0; a < PAGE_FILL; a++) lines.push("");
+      lines.push(...formatHeaderLinesFaktur(data));
     }
   }
 
@@ -285,50 +375,12 @@ const generatePreviewSO = (data: any): string[] => {
     for (let a = 0; a < DATA_PER_PAGE - (i % DATA_PER_PAGE); a++) lines.push("");
   }
   lines.push("-".repeat(totalW));
-
-  const total = Number(data.total || 0);
-  const nilai = Number(data.nilai || total);
-  const taxamount = Number(data.taxamount || 0);
-  const dp = Number(data.dp || 0);
-  const discFaktur = Number(data.discFaktur || 0);
-
-  const terbilangText = terbilang(Math.round(total));
-  lines.push(
-    padRight("Terbilang : " + terbilangText.substring(0, 80) + " RUPIAH", 81) + " " +
-    padRight("Disc faktur   :", 15) + " " +
-    padLeft(fmtFloat(discFaktur), 21)
-  );
-  lines.push(
-    padRight(" ", 81) + " " +
-    padRight("Total         :", 15) + " " +
-    padLeft(fmtFloat(nilai), 21)
-  );
-  lines.push(
-    padRight(" ", 81) + " " +
-    padRight("Ppn           :", 15) + " " +
-    padLeft(fmtFloat(taxamount), 21)
-  );
-  lines.push(
-    padRight("", 20) + " " +
-    padRight("Dibuat oleh,", 30) + " " +
-    padRight("Mengetahui,", 29) + " " +
-    padRight("Grand Total   :", 15) + " " +
-    padLeft(fmtFloat(total), 21)
-  );
- lines.push("");
-  lines.push("");
-  lines.push(
-    padRight("", 21) + " " +
-    padRight("(               )", 30) + " " +
-    padRight("(               )", 30)
-  );
-  lines.push("");
-  lines.push("");
+  lines.push(...buildSummaryRows(data));
 
   return lines;
 };
 
-const generateEscPosSO = (data: any): string[] => {
+const generateEscPosFaktur = (data: any): string[] => {
   const NL = "\r\n";
   const ESC = "\x1B";
   const SI = "\x0F";
@@ -340,20 +392,20 @@ const generateEscPosSO = (data: any): string[] => {
   commands.push(ESC + "C" + String.fromCharCode(LINES_PER_PAGE));
   commands.push(ESC + "d" + "\x00");
 
-  for (const line of formatHeaderLinesSO(data)) {
+  for (const line of formatHeaderLinesFaktur(data)) {
     commands.push(line + NL);
   }
 
   let i = 0;
   for (const d of data.detail) {
     i++;
-    commands.push(formatDetailLinePO(i, d) + NL);
+    commands.push(formatDetailLineFaktur(i, d) + NL);
     if (i % DATA_PER_PAGE === 0 && i < data.detail.length) {
       commands.push("-".repeat(totalW) + NL);
-      for (let a = 0; a < 8; a++) {
+      for (let a = 0; a < PAGE_FILL; a++) {
         commands.push(NL);
       }
-      for (const line of formatHeaderLinesSO(data)) {
+      for (const line of formatHeaderLinesFaktur(data)) {
         commands.push(line + NL);
       }
     }
@@ -364,48 +416,9 @@ const generateEscPosSO = (data: any): string[] => {
   }
   commands.push("-".repeat(totalW) + NL);
 
-  const total = Number(data.total || 0);
-  const nilai = Number(data.nilai || total);
-  const taxamount = Number(data.taxamount || 0);
-  const dp = Number(data.dp || 0);
-  const discFaktur = Number(data.discFaktur || 0);
-
-  const terbilangText = terbilang(Math.round(total));
-  commands.push(
-    padRight("Terbilang : " + terbilangText.substring(0, 80) + " RUPIAH", 81) + " " +
-    padRight("Disc faktur   :", 15) + " " +
-    padLeft(fmtFloat(discFaktur), 21) + NL
-  );
-  commands.push(
-    padRight(" ", 81) + " " +
-    padRight("Total         :", 15) + " " +
-    padLeft(fmtFloat(nilai), 21) + NL
-  );
-  commands.push(
-    padRight(" ", 81) + " " +
-    padRight("Ppn           :", 15) + " " +
-    padLeft(fmtFloat(taxamount), 21) + NL
-  );
-  commands.push(
-    padRight("", 20) + " " +
-    padRight("Dibuat oleh,", 30) + " " +
-    padRight("Mengetahui,", 30) + " " +
-    padRight("Grand Total   :", 15) + " " +
-    padLeft(fmtFloat(total), 21) + NL
-  );
-  commands.push(
-    padRight("", 81) + " " +
-    padRight("Uang Muka     :", 15) + " " +
-    padLeft(fmtFloat(dp), 21) + NL
-  );
-  commands.push(NL);
-  commands.push(
-    padRight("", 21) + " " +
-    padRight("(               )", 30) + " " +
-    padRight("(               )", 30) + NL
-  );
-  commands.push(NL);
-  commands.push(NL);
+  for (const row of buildSummaryRows(data)) {
+    commands.push(row + NL);
+  }
 
   return commands;
 };
@@ -426,7 +439,7 @@ const doCetak = async () => {
   try {
     const data = await penjualanApi.getPrintData(item.Nomor);
     cachedPrintData.value = data;
-    previewLines.value = generatePreviewSO(data);
+    previewLines.value = generatePreviewFaktur(data);
     showPreviewDialog.value = true;
   } catch (e: any) {
     toast.error(e.message || "Gagal memuat data cetak penjualan.");
@@ -438,7 +451,7 @@ const doCetak = async () => {
 const onPrinterSaved = async () => {
   showPrinterDialog.value = false;
   if (isSingleSelected.value && cachedPrintData.value) {
-    previewLines.value = generatePreviewSO(cachedPrintData.value);
+    previewLines.value = generatePreviewFaktur(cachedPrintData.value);
     showPreviewDialog.value = true;
   }
 };
@@ -453,7 +466,7 @@ const onPrintFromPreview = async () => {
 
   isPrinting.value = true;
   try {
-    const commands = generateEscPosSO(cachedPrintData.value);
+    const commands = generateEscPosFaktur(cachedPrintData.value);
     await connect();
     await printRaw(savedPrinter, commands);
     toast.success("Berhasil dikirim ke printer!");
@@ -480,8 +493,10 @@ const doExport = async () => {
         { header: "Pajak", key: "Pajak", width: 10, align: "center" },
         { header: "Total", key: "Total", width: 18, currency: true },
         { header: "PPN", key: "Ppn", width: 16, currency: true },
-        { header: "Status", key: "Status", width: 12, align: "center" },
-        { header: "Kirim", key: "Kirim", width: 12, align: "center" },
+        { header: "Cash", key: "Cash", width: 14, currency: true },
+        { header: "Ongkir", key: "Ongkir", width: 14, currency: true },
+        { header: "Piutang", key: "Piutang", width: 14, currency: true },
+        { header: "Card", key: "Card", width: 14, currency: true },
       ],
       rows: items.value,
     });
@@ -539,10 +554,6 @@ const rowPropsFn = (data: any) => {
       <v-btn size="small" color="error" variant="tonal" :disabled="!selectedItem" @click="onHapus">
         Hapus
       </v-btn>
-      <v-btn size="small" variant="tonal" color="info" :disabled="!selectedItem" @click="onUpdateStatus">
-        <template #prepend><IconStatusChange :size="13" :stroke-width="1.8" /></template>
-        Update Status
-      </v-btn>
       <v-btn size="small" variant="tonal" color="primary" :loading="isPrinting" :disabled="!isSingleSelected" @click="doCetak">
         <template #prepend><IconPrinter :size="13" :stroke-width="1.8" /></template>
         Cetak
@@ -571,20 +582,20 @@ const rowPropsFn = (data: any) => {
       <div class="tr text-blue-darken-4">{{ fmtCurrency(item.Ppn) }}</div>
     </template>
 
-    <template #item.Status="{ item }">
-      <div class="tc">
-        <span :class="item.Status === 'Closed' ? 'badge-closed' : 'badge-open'">
-          {{ item.Status }}
-        </span>
-      </div>
+    <template #item.Cash="{ item }">
+      <div class="tr text-green-darken-4">{{ fmtCurrency(item.Cash) }}</div>
     </template>
 
-    <template #item.Kirim="{ item }">
-      <div class="tc">
-        <span :class="item.Kirim === 'Sudah' ? 'badge-open' : 'badge-closed'">
-          {{ item.Kirim }}
-        </span>
-      </div>
+    <template #item.Ongkir="{ item }">
+      <div class="tr text-orange-darken-3">{{ fmtCurrency(item.Ongkir) }}</div>
+    </template>
+
+    <template #item.Piutang="{ item }">
+      <div class="tr text-red-darken-3">{{ fmtCurrency(item.Piutang) }}</div>
+    </template>
+
+    <template #item.Card="{ item }">
+      <div class="tr text-purple-darken-3">{{ fmtCurrency(item.Card) }}</div>
     </template>
 
     <template #detail="{ item }">
@@ -674,7 +685,7 @@ const rowPropsFn = (data: any) => {
   <!-- ── Print Preview Dialog ── -->
   <PrintPreviewDialog
     v-model="showPreviewDialog"
-    title="Preview Sales Order"
+    title="Preview Faktur Penjualan"
     :lines="previewLines"
     :is-loading="isPrinting"
     @print="onPrintFromPreview"

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, watch } from "vue";
+import { ref, computed, onMounted, onActivated, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { useToast } from "vue-toastification";
 import { useAuthStore } from "@/stores/authStore";
@@ -280,6 +280,12 @@ const resetForm = () => {
   router.replace({ name: "poCreate" }).catch(() => {});
 };
 
+// Form di-cache KeepAlive antar tab: setelah PO tersimpan (atau user keluar),
+// saat tab "PO Baru" dibuka lagi komponen yang lama bangkit kembali dengan
+// isian sungguhan PO sebelumnya. Tandai setiap akhir siklus, dan bersihkan
+// form saat tab-nya diaktifkan kembali.
+const needCleanForm = ref(false);
+
 const validateSave = (): boolean => {
   if (!form.value.supKode) {
     toast.warning("Supplier harus dipilih.");
@@ -324,9 +330,11 @@ const confirmSave = async () => {
     toast.success("Purchase Order berhasil disimpan.");
     savedNomor.value = res?.nomor || form.value.nomor;
     showSaveDialog.value = false;
-  
+    needCleanForm.value = true;
+
     if (isNewMode) {
       resetForm();
+      needCleanForm.value = false;
       toast.info(`PO ${savedNomor.value} tersimpan. Form siap untuk entri baru.`);
     } else {
       // Langsung kembali ke browse dan tutup tab form
@@ -347,6 +355,7 @@ const confirmSave = async () => {
 
 const confirmCancel = () => {
   showCancelDialog.value = false;
+  needCleanForm.value = true;
   router.push({ name: "poBrowse" });
 };
 
@@ -361,6 +370,15 @@ const confirmClose = async () => {
 onMounted(() => {
   loadData();
   loadSearchOptions();
+});
+
+// Saat tab "PO Baru" dibuka lagi (komponen ter-cache KeepAlive), onMounted
+// tidak jalan lagi -- bersihkan form di sini supaya form selalu kosong.
+onActivated(() => {
+  if (route.name === "poCreate" && needCleanForm.value) {
+    resetForm();
+    needCleanForm.value = false;
+  }
 });
 
 const fmtCurrency = (v: number) =>

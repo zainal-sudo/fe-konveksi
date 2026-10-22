@@ -69,6 +69,15 @@ const headers = [
   { title: "STATUS BAYAR",  key: "StatusBayar", width: "110px", align: "center" },
 ];
 
+// Baris TOTAL di footer grid
+const summaryColumns = [
+  { key: "Total",  label: "Total Nilai" },
+  { key: "Retur",  label: "Total Retur" },
+  { key: "Ppn",    label: "Total PPN" },
+  { key: "Bayar",  label: "Total Dibayar" },
+  { key: "Freight", label: "Total Freight" },
+];
+
 const loadData = async () => {
   isLoading.value = true;
   selected.value = [];
@@ -530,6 +539,7 @@ const fmt = (v: number) => new Intl.NumberFormat("id-ID").format(v || 0);
     item-value="Nomor"
     @update:expanded="onUpdateExpanded"
     v-model:selected="selected"
+    :summary-columns="summaryColumns"
     @refresh="loadData"
   >
     <template #filter-left>

@@ -273,7 +273,6 @@ const fmtDate = (v: string) => {
             <tr>
               <th style="width: 100px">Account</th>
               <th style="min-width: 200px">Nama Account</th>
-              <th style="min-width: 120px">Detail CC</th>
               <th style="width: 130px">Debet</th>
               <th style="width: 130px">Kredit</th>
               <th style="min-width: 280px">Uraian</th>
@@ -283,14 +282,13 @@ const fmtDate = (v: string) => {
             <tr v-for="(d, idx) in getDetail(item.Nomor)" :key="idx">
               <td>{{ d.Account }}</td>
               <td>{{ d.NamaAccount }}</td>
-              <td>{{ d.DetailCC }}</td>
               <td class="tr">{{ d.Debet ? fmt(d.Debet) : "" }}</td>
               <td class="tr">{{ d.Kredit ? fmt(d.Kredit) : "" }}</td>
               <td>{{ d.Uraian }}</td>
             </tr>
             <tr v-if="!getDetail(item.Nomor).length">
               <td
-                colspan="6"
+                colspan="5"
                 class="tc"
                 style="color: #9e9e9e; font-style: italic; padding: 8px"
               >

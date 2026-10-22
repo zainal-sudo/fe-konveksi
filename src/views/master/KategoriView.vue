@@ -197,7 +197,7 @@ const handleDelete = async (item: Kategori) => {
         style="max-width: 180px"
         class="mr-2"
       />
-     
+
     </template>
   </BaseBrowse>
 

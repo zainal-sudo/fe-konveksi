@@ -93,6 +93,9 @@ const headers = [
   { title: "Kas / Bank", key: "REK_NAMA", width: "180px" },
 ];
 
+// Baris TOTAL di footer grid
+const summaryColumns = [{ key: "TOTAL_BAYAR", label: "Total Bayar" }];
+
 // Helper Format Nominal Angka ke Rupiah (Rp)
 const fmtCurrency = (v: number) => {
   return new Intl.NumberFormat("id-ID", {
@@ -194,7 +197,8 @@ const onUpdateExpanded = async (newExpanded: any[]) => {
 	  item-value="NOMOR"
 	  @update:expanded="onUpdateExpanded"
     v-model:selected="selected"
-   
+    :summary-columns="summaryColumns"
+
     v-model:show-close-dialog="showCloseDialog"
     :can-insert="canInsert"
     :can-edit="canEdit"

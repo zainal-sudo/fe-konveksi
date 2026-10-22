@@ -1,3 +1,10 @@
+/* ── Design System Tokens ── Finance Biru ── */
+:root {
+  --ds-primary: #3b5998;
+  --ds-primary-dark: #2c4472;
+  --ds-primary-50: #e8edf5;
+}
+
 /* ── Global reset & base ── */
 *,
 *::before,

@@ -5,6 +5,7 @@ export interface Cabang {
   nama: string;
   alamat: string;
   kota: string;
+  rekPersediaan?: string | null;
 }
 
 export const cabangApi = {
@@ -12,7 +13,14 @@ export const cabangApi = {
     const { data } = await api.get("/master/cabang");
     return data.data;
   },
-  save: async (payload: { isEdit: boolean; kode: string; nama: string; alamat: string; kota: string }) => {
+  save: async (payload: {
+    isEdit: boolean;
+    kode: string;
+    nama: string;
+    alamat: string;
+    kota: string;
+    rekPersediaan?: string | null;
+  }) => {
     const { data } = await api.post("/master/cabang/save", payload);
     return data;
   },

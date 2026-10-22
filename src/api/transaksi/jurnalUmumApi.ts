@@ -14,7 +14,6 @@ export interface JurnalUmumDetailRow {
   Nomor: string;
   Account: string;
   NamaAccount: string;
-  DetailCC: string;
   Debet: number;
   Kredit: number;
   Uraian: string;

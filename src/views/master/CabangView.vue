@@ -1,10 +1,12 @@
 <script setup lang="ts">
-import { ref } from "vue";
+import { ref, onMounted } from "vue";
 import { useToast } from "vue-toastification";
 import { IconBuildingStore, IconDownload } from "@tabler/icons-vue";
 import BaseBrowse from "@/components/BaseBrowse.vue";
 import { useBrowse } from "@/composables/useBrowse";
 import { cabangApi, type Cabang } from "@/api/master/cabangApi";
+import type { Rekening } from "@/api/master/rekeningApi";
+import { rekeningApi } from "@/api/master/rekeningApi";
 import { exportToExcel } from "@/utils/exportExcel";
 
 const MENU_ID = "95"; // Sesuaikan ID menu Cabang
@@ -52,8 +54,19 @@ const dialog = ref(false);
 const dialogTitle = ref("");
 const isSaving = ref(false);
 
-const emptyForm = () => ({ isEdit: false, kode: "", nama: "", alamat: "", kota: "" });
+const emptyForm = () => ({ isEdit: false, kode: "", nama: "", alamat: "", kota: "", rekPersediaan: null as string | null });
 const form = ref(emptyForm());
+
+// ── Opsi akun persediaan (trekening grup 17.x) ────────────────────────
+const rekeningOptions = ref<Rekening[]>([]);
+onMounted(async () => {
+  try {
+    const all = await rekeningApi.getAll();
+    rekeningOptions.value = all.filter((r) => r.kode?.startsWith("17."));
+  } catch {
+    /* dropdown kosong saja; master tetap bisa disimpan */
+  }
+});
 
 // ── Validasi Form ─────────────────────────────────────────────────────
 const errors = ref<{ kode?: string; nama?: string }>({});
@@ -81,6 +94,7 @@ const openEdit = (item: Cabang) => {
     nama: item.nama,
     alamat: item.alamat,
     kota: item.kota,
+    rekPersediaan: item.rekPersediaan || null,
   };
   errors.value = {};
   dialogTitle.value = "Ubah Cabang";
@@ -202,6 +216,29 @@ const handleDelete = async (item: Cabang) => {
               :disabled="isSaving"
               placeholder="Kota cabang"
             />
+          </div>
+
+          <div class="f-row">
+            <label class="f-lbl">Akun Persediaan</label>
+            <v-select
+              v-model="form.rekPersediaan"
+              :items="rekeningOptions"
+              item-title="nama"
+              item-value="kode"
+              density="compact"
+              variant="outlined"
+              hide-details
+              clearable
+              :disabled="isSaving"
+              placeholder="Pilih akun persediaan"
+            >
+              <template #item="{ props, item }">
+                <v-list-item v-bind="props" :title="`${item.raw.kode} - ${item.raw.nama}`" />
+              </template>
+              <template #selection="{ item }">
+                <span class="text-caption">{{ item.raw.kode }} - {{ item.raw.nama }}</span>
+              </template>
+            </v-select>
           </div>
 
         </div>

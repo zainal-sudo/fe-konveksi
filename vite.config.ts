@@ -25,7 +25,11 @@ export default defineConfig({
     port: 8020,
     proxy: {
       "/api": {
-        target: "http://103.175.221.20:3199",
+        // ⚠️ ENV PEMBAHASAN LOKAL: request /api dari FE dev diarahkan ke
+        // backend lokal yang jalan di port 3199 komputer ini (kode baru
+        // dengan jurnal otomatis). Sesudah deploy kesini ke VPS, balikkan
+        // ke http://103.175.221.20:3199.
+        target: "http://localhost:3199",
         changeOrigin: true,
       },
     },

@@ -107,6 +107,12 @@ const totalNilai = computed(() =>
   items.value.reduce((s, r) => s + Number(r.nilai || 0), 0),
 );
 
+// Baris TOTAL di bawah grid (kolom stok & nilai)
+const summaryColumns = [
+  { key: "stok", label: "Total Stok" },
+  { key: "nilai", label: "Total Nilai" },
+];
+
 
 </script>
 
@@ -123,7 +129,8 @@ const totalNilai = computed(() =>
     v-model:selected="selected"
     :filter-values="filterValues"
     summary-key="nilai"
-    summary-label="Total Value Keseluruhan"
+    summary-label="Total Nilai Persediaan"
+    :summary-columns="summaryColumns"
     @refresh="loadData"
   >
     <!-- ── Filter Periode & Gudang ── -->

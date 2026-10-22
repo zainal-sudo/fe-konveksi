@@ -518,7 +518,6 @@ const confirmClose = () => {
     :columns="[
       { key: 'kode', title: 'Kode', width: '100px' },
       { key: 'nama', title: 'Nama Account' },
-      { key: 'cabang', title: 'Cabang', width: '80px', align: 'center' },
     ]"
     :items="accountAllOptions"
     search-placeholder="Cari account..."
