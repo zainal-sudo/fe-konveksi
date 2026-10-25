@@ -7,7 +7,7 @@ const api = axios.create({
   // (kode baru: jurnal otomatis INV/RET/Bayar/SO dll). Sebelumnya ke
   // http://103.175.221.20:3199/api -- backend VPS yang masih kode lama.
   // Ganti balik ke 103175.221.20 saat sudah deploy backend baru ke sana.
-  baseURL: "http://localhost:3199/api",
+  baseURL: "/konveksi-api/api",   // "http://localhost:3199/api",
   timeout: 30000,
   headers: { "Content-Type": "application/json" },
 });
