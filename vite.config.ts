@@ -29,6 +29,13 @@ export default defineConfig({
         target: "http://localhost:3199",
         changeOrigin: true,
       },
+      // Axios memakai baseURL "/konveksi-api/api". Tanpa rule ini request
+      // API mendarat di dev server Vite sendiri -> 404 (login pun gagal).
+      "/konveksi-api": {
+        target: "http://localhost:3199",
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/konveksi-api/, ""),
+      },
     },
   },
   define: {

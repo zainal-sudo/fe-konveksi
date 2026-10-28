@@ -21,6 +21,18 @@ const router = createRouter({
       meta: { layout: "DefaultLayout", requiresAuth: true, title: "Dashboard" },
     },
 
+    // ── Setting Printer ─────────────────────────────────────────────────
+    {
+      path: "/settings/printer",
+      name: "settingPrinter",
+      component: () => import("@/views/tools/SettingPrinterView.vue"),
+      meta: {
+        layout: "DefaultLayout",
+        requiresAuth: true,
+        title: "Setting Printer",
+      },
+    },
+
     // ── Master ────────────────────────────────────────────────────────
       {
       path: "/master/Supplier",
@@ -374,6 +386,52 @@ const router = createRouter({
     menuId: "40",
     title: "Ubah STBJ",
     browseRoute: "stbjBrowse",
+  },
+},
+{
+  path: "/transaksi/spk",
+  name: "spkBrowse",
+  component: () => import("@/views/transaksi/SpkBrowseView.vue"),
+  meta: {
+    layout: "DefaultLayout",
+    requiresAuth: true,
+    menuId: "84",
+    title: "Surat Perintah Kerja",
+    browseRoute: "spkBrowse",
+  },
+},
+{
+  path: "/transaksi/spk/baru",
+  name: "spkCreate",
+  component: () => import("@/views/transaksi/SpkFormView.vue"),
+  meta: {
+    layout: "DefaultLayout",
+    requiresAuth: true,
+    menuId: "84",
+    title: "Tambah SPK",
+    browseRoute: "spkBrowse",
+  },
+},
+{
+  path: "/transaksi/spk/ubah/:nomor",
+  name: "spkEdit",
+  component: () => import("@/views/transaksi/SpkFormView.vue"),
+  meta: {
+    layout: "DefaultLayout",
+    requiresAuth: true,
+    menuId: "84",
+    title: "Ubah SPK",
+    browseRoute: "spkBrowse",
+  },
+},
+{
+  path: "/transaksi/spk/print/:nomor",
+  name: "spkPrint",
+  component: () => import("@/views/transaksi/SpkPrintView.vue"),
+  meta: {
+    layout: "BlankLayout",
+    requiresAuth: true,
+    title: "Cetak SPK",
   },
 },
 
@@ -927,6 +985,7 @@ router.beforeEach((to) => {
   if (cabang !== "00" && authStore.isAuthenticated) {
     const izinkanPrefix = [
       "/",
+      "/settings/printer",
       "/transaksi/penjualan",
       "/transaksi/mutasi-out",
       "/transaksi/mutasi-in",

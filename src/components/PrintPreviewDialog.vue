@@ -14,6 +14,21 @@ const emit = defineEmits<{
   print: [pageNumbers: number[]];
 }>();
 
+// Lebar dialog mengikuti lebar teks cetakan (bukan 97vw flat), supaya tidak
+// ada kekosongan besar di sebelah kanan ketika lebar cetakannya lebih kecil.
+// Courier New 12px ~ 7.3px per karakter; + 96px untuk padding & scrollbar.
+const maxLineLen = computed(() => {
+  const real = props.lines
+    .filter((l) => l !== "\f")
+    .map((l) => l.length);
+  return Math.max(80, ...(real.length ? real : [80]));
+});
+const dialogWidth = computed(() => {
+  const w = Math.ceil(maxLineLen.value * 7.3) + 96;
+  const maxVw = Math.round(window.innerWidth * 0.95);
+  return Math.min(Math.max(w, 480), maxVw);
+});
+
 const onClose = () => {
   emit("update:modelValue", false);
 };
@@ -77,7 +92,7 @@ const onPrint = () => {
     :model-value="modelValue"
     @update:model-value="onClose"
     max-width="1500"
-    width="97vw"
+    :width="dialogWidth"
     persistent
   >
     <v-card>

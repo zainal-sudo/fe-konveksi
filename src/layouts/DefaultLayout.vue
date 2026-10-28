@@ -15,6 +15,7 @@ import {
   IconLogout,
   IconUser,
   IconLock,
+  IconPrinter,
   IconBuildingBank,
   IconFileInvoice,
   IconReportMoney,
@@ -85,6 +86,10 @@ const logout = () => {
   authStore.logout();
   tabsStore.resetTabs();
   router.push("/login");
+};
+
+const goToSettingPrinter = () => {
+  router.push({ name: "settingPrinter" });
 };
 
 // Toggle hamburger — beda behavior mobile vs desktop
@@ -251,6 +256,12 @@ const menus = [
     icon: IconAdjustments,
     menuId: null,
     children: [
+      {
+        title: "Surat Perintah Kerja (SPK)",
+        icon: IconFileInvoice,
+        route: "/transaksi/spk",
+        menuId: "84",
+      },
       {
         title: "STBJ",
         icon: IconTruckDelivery,
@@ -593,6 +604,19 @@ const toggleGroup = (title: string) => {
               </template>
               <v-list-item-title style="font-size: 13px"
                 >Ganti Password</v-list-item-title
+              >
+            </v-list-item>
+            <v-list-item @click="goToSettingPrinter">
+              <template #prepend>
+                <IconPrinter
+                  :size="15"
+                  :stroke-width="1.8"
+                  class="mr-2"
+                  style="color: #3B5998"
+                />
+              </template>
+              <v-list-item-title style="font-size: 13px"
+                >Setting Printer</v-list-item-title
               >
             </v-list-item>
             <v-divider class="my-1" />

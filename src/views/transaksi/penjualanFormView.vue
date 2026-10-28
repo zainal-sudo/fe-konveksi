@@ -12,10 +12,13 @@ import {
   IconSearch,
   IconPlus,
   IconTrash,
-  IconMapPin,
-  IconPhone,
 } from "@tabler/icons-vue";
 import { penjualanFormApi, type PenjualanForm, type PenjualanDetail } from "@/api/transaksi/penjualanFormApi";
+import { penjualanApi } from "@/api/transaksi/penjualanApi";
+import { useQzPrint } from "@/composables/useQzPrint";
+import PrinterDialog from "@/components/PrinterDialog.vue";
+import PrintPreviewDialog from "@/components/PrintPreviewDialog.vue";
+import { generatePreviewFaktur, generateEscPosFaktur } from "@/utils/fakturPrint";
 
 const route = useRoute();
 const router = useRouter();
@@ -27,14 +30,27 @@ const isEdit = computed(() => !!route.params.nomor);
 const isLoading = ref(false);
 const isSaving = ref(false);
 const isSavingNew = ref(false);
+const isSavingCetak = ref(false);
 
 const showSaveDialog = ref(false);
 const showCancelDialog = ref(false);
 const showCloseDialog = ref(false);
 const savedNomor = ref("");
-const saveMode = ref<"normal" | "new">("normal");
+const saveMode = ref<"normal" | "new" | "cetak">("normal");
 const tabsStore = useTabsStore();
 const today = new Date().toISOString().slice(0, 10);
+
+// ── Simpan & Cetak (Dot Matrix / QZ Tray, langsung dari form) ─────────
+// Setelah simpan, faktur ditampilkan di dialog preview lalu dikirim ke
+// printer. FORM TIDAK DITUTUP dan tidak pindah halaman — form di-reset
+// kosong supaya user langsung bisa menginput transaksi berikutnya.
+const { connect, getSavedPrinter, printRaw } = useQzPrint();
+const isPrinting = ref(false);
+const showPrinterDialog = ref(false);
+const showPreviewDialog = ref(false);
+const previewLines = ref<string[]>([]);
+const cachedPrintData = ref<any | null>(null);
+const pendingPrintNomor = ref("");
 
 const emptyForm = (): PenjualanForm => ({
   isEdit: false,
@@ -76,8 +92,6 @@ const barangLoading = ref(false);
 const showCustomerModal = ref(false);
 const showBarangModal = ref(false);
 const activeDetailIndex = ref<number>(-1);
-
-const hasCustomerDetail = computed(() => !!(form.value.cusAlamat || form.value.cusTelp));
 
 // ── Subtotal per baris (setelah disc % per item) & Subtotal Bruto ─────
 const rowSubtotal = (d: PenjualanDetail) => {
@@ -406,20 +420,34 @@ const onValidateSaveAndNew = () => {
   showSaveDialog.value = true;
 };
 
+const onValidateSaveAndCetak = () => {
+  if (!validateSave()) return;
+  saveMode.value = "cetak";
+  showSaveDialog.value = true;
+};
+
 const confirmSave = async () => {
-  if (isSaving.value || isSavingNew.value) return;
+  if (isSaving.value || isSavingNew.value || isSavingCetak.value) return;
   const isNewMode = saveMode.value === "new";
-  isNewMode ? (isSavingNew.value = true) : (isSaving.value = true);
-  
+  const isCetakMode = saveMode.value === "cetak";
+  isCetakMode ? (isSavingCetak.value = true)
+    : isNewMode ? (isSavingNew.value = true) : (isSaving.value = true);
+
   try {
     form.value.kembali = uangKembalian.value;
     form.value.dp = kasNeto.value;
     const res = await penjualanFormApi.save(form.value);
-    toast.success("Penjualan berhasil disimpan.");
     savedNomor.value = res?.nomor || res?.data?.nomor || form.value.nomor;
     showSaveDialog.value = false;
-  
-    if (isNewMode) {
+
+    if (isCetakMode) {
+      // Reset form DI TEMPAT (tanpa pindah halaman / menutup tab) supaya
+      // user langsung bisa input transaksi berikutnya di belakang dialog
+      // preview cetak.
+      resetForm();
+      toast.success(`Penjualan ${savedNomor.value} tersimpan. Menyiapkan faktur cetak...`);
+      await preparePrintAfterSave(savedNomor.value);
+    } else if (isNewMode) {
       resetForm();
       toast.info(`Penjualan ${savedNomor.value} tersimpan. Form siap untuk entri baru.`);
     } else {
@@ -430,12 +458,13 @@ const confirmSave = async () => {
     tabsStore.closeTab(targetPath);
 
     }
-   
+
   } catch (e: any) {
     toast.error(e.response?.data?.message || "Gagal menyimpan penjualan.");
   } finally {
     isSaving.value = false;
     isSavingNew.value = false;
+    isSavingCetak.value = false;
   }
 };
 
@@ -447,6 +476,59 @@ const confirmCancel = () => {
   const targetPath = route.path;
   router.push({ name: "penjualanBrowse" });
   nextTick().then(() => tabsStore.closeTab(targetPath));
+};
+
+// ── Alur cetak faktur setelah simpan (Simpan & Cetak) ─────────────────
+const preparePrintAfterSave = async (nomor: string) => {
+  pendingPrintNomor.value = nomor;
+  const savedPrinter = getSavedPrinter();
+  if (!savedPrinter) {
+    showPrinterDialog.value = true;
+    return;
+  }
+  try {
+    const data = await penjualanApi.getPrintData(nomor);
+    cachedPrintData.value = data;
+    previewLines.value = generatePreviewFaktur(data);
+    showPreviewDialog.value = true;
+  } catch (e: any) {
+    toast.error(e.message || "Data tersimpan, namun gagal menyiapkan faktur cetak.");
+  }
+};
+
+const onPrinterSaved = async () => {
+  showPrinterDialog.value = false;
+  if (!pendingPrintNomor.value) return;
+  try {
+    const data = await penjualanApi.getPrintData(pendingPrintNomor.value);
+    cachedPrintData.value = data;
+    previewLines.value = generatePreviewFaktur(data);
+    showPreviewDialog.value = true;
+  } catch (e: any) {
+    toast.error(e.message || "Gagal menyiapkan faktur cetak.");
+  }
+};
+
+const onPrintFromPreview = async () => {
+  showPreviewDialog.value = false;
+  const savedPrinter = getSavedPrinter();
+  if (!savedPrinter || !cachedPrintData.value) {
+    toast.warning("Printer belum diset.");
+    return;
+  }
+
+  isPrinting.value = true;
+  try {
+    const commands = generateEscPosFaktur(cachedPrintData.value);
+    await connect();
+    await printRaw(savedPrinter, commands);
+    toast.success(`Faktur ${pendingPrintNomor.value} dikirim ke printer. Silakan lanjut input berikutnya.`);
+  } catch (e: any) {
+    toast.error(e.message || "Gagal mencetak ke printer.");
+  } finally {
+    isPrinting.value = false;
+    cachedPrintData.value = null;
+  }
 };
 
 const confirmClose = async () => {
@@ -489,7 +571,7 @@ const fmtNumber = (v: number) => new Intl.NumberFormat("id-ID").format(v || 0);
     :icon="IconShoppingCart"
     :menu-id="MENU_ID"
     :is-loading="isLoading"
-    :is-saving="isSaving"
+    :is-saving="isSaving || isSavingNew || isSavingCetak"
     :is-edit-mode="isEdit"
     v-model:show-save-dialog="showSaveDialog"
     v-model:show-cancel-dialog="showCancelDialog"
@@ -499,8 +581,9 @@ const fmtNumber = (v: number) => new Intl.NumberFormat("id-ID").format(v || 0);
     @confirm-cancel="confirmCancel"
     @confirm-close="confirmClose"
   >
-    <template #extra-actions v-if="!isEdit">
+    <template #extra-actions>
       <v-btn
+        v-if="!isEdit"
         size="small"
         variant="outlined"
         color="primary"
@@ -508,6 +591,16 @@ const fmtNumber = (v: number) => new Intl.NumberFormat("id-ID").format(v || 0);
         @click="onValidateSaveAndNew"
       >
         Simpan &amp; Baru
+      </v-btn>
+      <v-btn
+        v-if="!isEdit"
+        size="small"
+        variant="flat"
+        color="green-darken-3"
+        :loading="isSavingCetak"
+        @click="onValidateSaveAndCetak"
+      >
+        <IconPrinter :size="14" class="mr-1" /> Simpan &amp; Cetak
       </v-btn>
     </template>
 
@@ -523,7 +616,6 @@ const fmtNumber = (v: number) => new Intl.NumberFormat("id-ID").format(v || 0);
             <label class="f-lbl">Customer</label>
             <div class="search-group" @click="showCustomerModal = true">
               <input type="text" :value="form.cusKode" class="f-inp-native w-30 readonly-bg" readonly placeholder="Kode" />
-              <input type="text" :value="form.cusNama" class="f-inp-native w-70 readonly-bg" readonly placeholder="Pilih Customer..." />
               <button class="btn-search" type="button" :disabled="isEdit" @click.stop="showCustomerModal = true">
                 <IconSearch :size="14" />
               </button>
@@ -533,6 +625,11 @@ const fmtNumber = (v: number) => new Intl.NumberFormat("id-ID").format(v || 0);
           <div class="f-row">
             <label class="f-lbl">Tanggal SO</label>
             <input type="date" v-model="form.tanggal" class="f-inp-native" :disabled="isEdit" @change="onTanggalChange" />
+          </div>
+
+          <div class="f-row">
+            <label class="f-lbl">Nama Cust.</label>
+            <input type="text" :value="form.cusNama" class="f-inp-native readonly-bg" readonly placeholder="Pilih Customer..." />
           </div>
 
           <div class="f-row">
@@ -559,22 +656,7 @@ const fmtNumber = (v: number) => new Intl.NumberFormat("id-ID").format(v || 0);
           </div>
         </div>
 
-        <div class="supplier-info-card" v-if="hasCustomerDetail">
-          <div class="supplier-info-row" v-if="form.cusAlamat">
-            <IconMapPin :size="13" class="supplier-info-icon" />
-            <span>{{ form.cusAlamat }}</span>
-          </div>
-          <div class="supplier-info-row" v-if="form.cusTelp">
-            <IconPhone :size="13" class="supplier-info-icon" />
-            <span>{{ form.cusTelp }}</span>
-          </div>
-        </div>
-
-        <div class="f-row align-start mt-1">
-          <label class="f-lbl mt-1">Catatan / Memo</label>
-          <textarea v-model="form.memo" class="f-txa-native" rows="2" placeholder="Catatan / Memo Faktur..."></textarea>
-        </div>
-        <div class="detail-section mt-2" style="width: 100%;">
+        <div class="detail-section mt-1" style="width: 100%;">
         <div class="d-flex align-center justify-between mb-2">
           <div class="section-title">Detail Item Barang / Jasa</div>
           <v-btn size="x-small" color="green-darken-3" class="font-weight-bold text-white" @click="openAddBarang">
@@ -593,7 +675,6 @@ const fmtNumber = (v: number) => new Intl.NumberFormat("id-ID").format(v || 0);
                 <th style="width: 70px;" class="tr">QTY</th>
                 <th style="width: 120px;" class="tr">HARGA JUAL</th>
                 <th style="width: 70px;" class="tr">DISC (%)</th>
-                <th style="min-width: 150px;">KETERANGAN</th>
                 <th style="width: 130px;" class="tr">SUBTOTAL</th>
                 <th class="tc" style="width: 50px;">AKSI</th>
               </tr>
@@ -627,9 +708,6 @@ const fmtNumber = (v: number) => new Intl.NumberFormat("id-ID").format(v || 0);
                 <td>
                   <input type="number" v-model.number="row.discPr" class="cell-inp tr text-red font-weight-bold" @input="calcTotal" min="0" max="100" />
                 </td>
-                <td>
-                  <input type="text" v-model="row.keterangan" class="cell-inp text-grey-darken-2" placeholder="Catatan item..." />
-                </td>
                 <td class="tr pr-2 font-weight-bold" :class="rowSubtotal(row) < 0 ? 'val-red' : 'val-green'">
                   Rp {{ fmtCurrency(rowSubtotal(row)) }}
                 </td>
@@ -640,7 +718,7 @@ const fmtNumber = (v: number) => new Intl.NumberFormat("id-ID").format(v || 0);
                 </td>
               </tr>
               <tr v-if="form.detail.length === 0">
-                <td colspan="10" class="tc pa-4 text-grey style-italic">Belum ada item barang. Silakan klik tombol "Tambah Barang".</td>
+                <td colspan="9" class="tc pa-4 text-grey style-italic">Belum ada item barang. Silakan klik tombol "Tambah Barang".</td>
               </tr>
             </tbody>
           </table>
@@ -829,13 +907,34 @@ const fmtNumber = (v: number) => new Intl.NumberFormat("id-ID").format(v || 0);
       @select="selectBarang"
       @search="searchBarang"
     />
+
+    <!-- ── Printer Dialog (Simpan & Cetak) ── -->
+    <PrinterDialog
+      v-model="showPrinterDialog"
+      @saved="onPrinterSaved"
+    />
+
+    <!-- ── Print Preview Dialog (Simpan & Cetak) ──
+         Ditampilkan DI ATAS form yang sudah di-reset — form tidak
+         ditutup supaya user bisa langsung menginput transaksi berikutnya
+         begitu dialog ini ditutup. -->
+    <PrintPreviewDialog
+      v-model="showPreviewDialog"
+      title="Preview Faktur Penjualan"
+      :lines="previewLines"
+      :is-loading="isPrinting"
+      @print="onPrintFromPreview"
+    />
   </BaseForm>
 </template>
 
 <style scoped>
 .form-header-grid {
   display: grid;
-  grid-template-columns: 1fr 330px;
+  /* minmax(0,1fr): kolom kiri boleh menyusut di bawah min-content
+     detail-item supaya panel PEMBAYARAN di kanan tidak terdorong
+     keluar layar (kepotong) pada zoom 100%. */
+  grid-template-columns: minmax(0, 1fr) 330px;
   gap: 20px;
   align-items: start;
 }
@@ -929,46 +1028,6 @@ const fmtNumber = (v: number) => new Intl.NumberFormat("id-ID").format(v || 0);
   width: 70%;
 }
 
-.supplier-info-card {
-  margin-left: 110px;
-  margin-top: -2px;
-  padding: 6px 10px;
-  background: #eef2ff;
-  border: 1px solid #e0e7ff;
-  border-radius: 5px;
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-  animation: fadeInInfo 0.2s ease-in;
-}
-.supplier-info-row {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 10.5px;
-  color: #4b5563;
-  line-height: 1.3;
-}
-.supplier-info-icon {
-  color: #6366f1;
-  flex-shrink: 0;
-}
-@keyframes fadeInInfo {
-  from {
-    opacity: 0;
-    transform: translateY(-2px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-@media (max-width: 600px) {
-  .supplier-info-card {
-    margin-left: 0;
-  }
-}
-
 .header-summary {
   background: #f9fafb;
   border: 1px solid #e5e7eb;
@@ -1052,9 +1111,9 @@ const fmtNumber = (v: number) => new Intl.NumberFormat("id-ID").format(v || 0);
 .piutang-lbl { color: #dc2626; }
 .pay-extra { display: flex; flex-direction: column; gap: 4px; }
 .pay-extra-cols { display: flex; gap: 4px; }
-.pay-text-inp { flex: 1; min-width: 0; height: 24px; border: 1px solid #d1d5db; border-radius: 4px; padding: 0 6px; font-size: 10.5px; outline: none; }
+.pay-text-inp { flex: 1; min-width: 0; height: 34px; border: 1px solid #d1d5db; border-radius: 4px; padding: 0 6px; font-size: 11.5px; outline: none; }
 .pay-text-inp:focus { border-color: #3B5998; }
-.pay-inp-sm { font-size: 11px; font-weight: 700; }
+.pay-inp-sm { font-size: 13px; font-weight: 700; }
 .wrap-cash .pay-input { background: #f0fdf4; color: #15803d; }
 .wrap-voucher .pay-input { background: #eff6ff; color: #1d4ed8; }
 .wrap-card .pay-input { background: #faf5ff; color: #7e22ce; }
@@ -1063,9 +1122,9 @@ const fmtNumber = (v: number) => new Intl.NumberFormat("id-ID").format(v || 0);
 .wrap-voucher { border-color: #93c5fd; }
 .wrap-card { border-color: #d8b4fe; }
 .wrap-piutang { border-color: #fca5a5; }
-.pay-input-wrap { display: flex; align-items: center; flex: 1; background: #fff; border: 1px solid #d1d5db; border-radius: 4px; height: 28px; overflow: hidden; }
+.pay-input-wrap { display: flex; align-items: center; flex: 1; background: #fff; border: 1px solid #d1d5db; border-radius: 4px; height: 34px; overflow: hidden; }
 .pay-input-wrap:focus-within { border-color: #3B5998; }
-.pay-prefix { padding: 0 6px; font-size: 10px; font-weight: 700; color: #6b7280; background: #f3f4f6; height: 100%; display: flex; align-items: center; border-right: 1px solid #d1d5db; }
+.pay-prefix { padding: 0 8px; font-size: 11px; font-weight: 700; color: #6b7280; background: #f3f4f6; height: 100%; display: flex; align-items: center; border-right: 1px solid #d1d5db; }
 .pay-input { flex: 1; min-width: 0; height: 100%; border: none; outline: none; padding: 0 8px; font-size: 13px; font-weight: 700; text-align: right; }
 .pay-change-row { display: flex; justify-content: space-between; align-items: center; margin-top: 7px; padding: 6px 8px; background: #14532d; color: #bbf7d0; border-radius: 4px; }
 .pay-short { background: #7f1d1d; color: #fecaca; } /* uang diterima kurang dari total */
@@ -1085,7 +1144,9 @@ const fmtNumber = (v: number) => new Intl.NumberFormat("id-ID").format(v || 0);
 }
 .detail-table {
   width: 100%;
-  min-width: 1020px;
+  /* 9 kolom setelah KETERANGAN dihapus — lebih kecil supaya detail item
+     tidak memaksa lebar halaman melebihi layar. */
+  min-width: 860px;
   border-collapse: collapse;
   font-size: 11px;
 }

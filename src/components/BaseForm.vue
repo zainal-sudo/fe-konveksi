@@ -44,6 +44,9 @@ const emit = defineEmits([
         /></template>
         Simpan
       </v-btn>
+      <!-- Slot aksi tambahan (mis. Simpan & Baru / Simpan & Cetak) di
+           samping tombol Simpan — hanya dirender kalau dipakai parent. -->
+      <slot name="extra-actions" />
       <v-btn size="small" variant="outlined" @click="showCancelDialog = true">
         Batal
       </v-btn>

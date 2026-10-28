@@ -1,4 +1,4 @@
-import ExcelJS from "exceljs";
+﻿import ExcelJS from "exceljs";
 import { saveAs } from "file-saver";
 import type {
   MutasiOutRow,
@@ -8,19 +8,16 @@ import type {
   DaftarHutangRow,
   DaftarHutangDetail,
 } from "@/api/laporan/daftarHutangApi";
+import { userCellText } from "@/utils/kolomUser";
 
-// --- Master Data Export ---
-export const exportCostCenter = async (
-  items: any[],
-  type: "browse" | "detail",
-) => {
+
+export const exportCostCenter = async (items: any[], mode: string = "browse") => {
   const wb = new ExcelJS.Workbook();
   const ws = wb.addWorksheet("Sheet1");
 
   const today = new Date();
   const tglStr = `${String(today.getDate()).padStart(2, "0")}/${String(today.getMonth() + 1).padStart(2, "0")}/${today.getFullYear()}`;
 
-  // ── Style helpers ──
   const borderAll: Partial<ExcelJS.Borders> = {
     top: { style: "thin" },
     left: { style: "thin" },
@@ -37,120 +34,50 @@ export const exportCostCenter = async (
     color: { argb: "FFFFFFFF" },
     size: 10,
   };
-  const boldFont: Partial<ExcelJS.Font> = { bold: true, size: 10 };
-  const normalFont: Partial<ExcelJS.Font> = { size: 10 };
 
-  const setHeaderCell = (cell: ExcelJS.Cell, value: string) => {
-    cell.value = value;
+  const setH = (cell: ExcelJS.Cell, val: string) => {
+    cell.value = val;
     cell.font = headerFont;
     cell.fill = headerFill;
     cell.border = borderAll;
-    cell.alignment = {
-      vertical: "middle",
-      horizontal: "center",
-      wrapText: true,
-    };
+    cell.alignment = { vertical: "middle", horizontal: "center" };
   };
-
-  const setCell = (
+  const setC = (
     cell: ExcelJS.Cell,
-    value: any,
+    val: any,
     align: "left" | "center" | "right" = "left",
-    bold = false,
   ) => {
-    cell.value = value;
-    cell.font = bold ? boldFont : normalFont;
+    cell.value = val;
     cell.border = borderAll;
+    cell.font = { size: 10 };
     cell.alignment = { vertical: "middle", horizontal: align };
   };
 
-  if (type === "browse") {
-    // ── Header info ──
-    ws.mergeCells("A1:B1");
-    ws.getCell("A1").value = "Browse Cost Center";
-    ws.getCell("A1").font = { bold: true, size: 12 };
+  ws.mergeCells("A1:B1");
+  ws.getCell("A1").value = "Master Cost Center";
+  ws.getCell("A1").font = { bold: true, size: 12 };
+  ws.mergeCells("A2:B2");
+  ws.getCell("A2").value = `Tanggal  :${tglStr}`;
+  ws.getCell("A2").font = { size: 10 };
+  ws.addRow([]);
 
-    ws.mergeCells("A2:B2");
-    ws.getCell("A2").value = `Tanggal  :${tglStr}`;
-    ws.getCell("A2").font = { size: 10 };
+  const cols = ["Kode", "Nama Cost Center"];
+  const hRow = ws.addRow(cols);
+  hRow.eachCell((cell, i) => setH(cell, cols[i - 1]));
+  hRow.height = 18;
 
-    ws.addRow([]);
-
-    // ── Table header ──
-    const hRow = ws.addRow(["Nomor", "Nama"]);
-    hRow.eachCell((cell) => setHeaderCell(cell, cell.value as string));
-    hRow.height = 18;
-
-    // ── Data ──
-    for (const item of items) {
-      const row = ws.addRow([item.kode, item.nama]);
-      setCell(row.getCell(1), item.kode, "right");
-      setCell(row.getCell(2), item.nama, "left");
-      row.height = 16;
-    }
-
-    ws.getColumn(1).width = 10;
-    ws.getColumn(2).width = 30;
-  } else {
-    // ── Header info ──
-    ws.mergeCells("A1:D1");
-    ws.getCell("A1").value = "Browse Cost Center";
-    ws.getCell("A1").font = { bold: true, size: 12 };
-
-    ws.mergeCells("A2:D2");
-    ws.getCell("A2").value = `Tanggal  :${tglStr}`;
-    ws.getCell("A2").font = { size: 10 };
-
-    ws.addRow([]);
-
-    // ── Table header — 4 kolom ──
-    const hRow = ws.addRow(["Nomor", "Nama", "Nomor", "Nama"]);
-    ["A", "B", "C", "D"].forEach((col, i) => {
-      setHeaderCell(
-        ws.getCell(`${col}${hRow.number}`),
-        hRow.getCell(i + 1).value as string,
-      );
-    });
-    hRow.height = 18;
-
-    // ── Data: header kiri + detail kanan ──
-    let rowNum = hRow.number + 1;
-    for (const item of items) {
-      const details = item.detail ?? [];
-      const rowCount = Math.max(details.length, 1);
-
-      for (let i = 0; i < rowCount; i++) {
-        const row = ws.getRow(rowNum + i);
-        // Kolom kiri hanya di baris pertama tiap header
-        if (i === 0) {
-          setCell(row.getCell(1), item.kode, "right");
-          setCell(row.getCell(2), item.nama, "left");
-        } else {
-          setCell(row.getCell(1), "", "left");
-          setCell(row.getCell(2), "", "left");
-        }
-        // Kolom kanan = detail
-        if (details[i]) {
-          setCell(row.getCell(3), item.kode, "right");
-          setCell(row.getCell(4), details[i].nama, "left");
-        } else {
-          setCell(row.getCell(3), "", "left");
-          setCell(row.getCell(4), "", "left");
-        }
-        row.height = 16;
-      }
-      rowNum += rowCount;
-    }
-
-    ws.getColumn(1).width = 10;
-    ws.getColumn(2).width = 30;
-    ws.getColumn(3).width = 10;
-    ws.getColumn(4).width = 30;
+  for (const item of items) {
+    const row = ws.addRow([item.kode, item.nama]);
+    setC(row.getCell(1), item.kode, "center");
+    setC(row.getCell(2), item.nama, "left");
+    row.height = 16;
   }
 
+  ws.getColumn(1).width = 10;
+  ws.getColumn(2).width = 40;
+
   const buf = await wb.xlsx.writeBuffer();
-  const name = type === "browse" ? "Master_Cost_Center" : "Detail_Cost_Center";
-  saveAs(new Blob([buf]), `${name}_${tglStr.replace(/\//g, "-")}.xlsx`);
+  saveAs(new Blob([buf]), `Master_CostCenter_${tglStr.replace(/\//g, "-")}.xlsx`);
 };
 
 export const exportAccount = async (items: any[]) => {
@@ -3895,12 +3822,12 @@ export const exportMasterUser = async (items: any[]) => {
     cell.alignment = { vertical: "middle", horizontal: align };
   };
 
-  ws.mergeCells("A1:D1");
+  ws.mergeCells("A1:C1");
   ws.getCell("A1").value = "Master User";
   ws.getCell("A1").font = { bold: true, size: 12 };
   ws.addRow([]);
 
-  const cols = ["Kode", "Nama", "Cabang", "Aktif"];
+  const cols = ["Kode", "Nama", "Jumlah Hak Menu"];
   const hRow = ws.addRow(cols);
   hRow.eachCell((cell, i) => setH(cell, cols[i - 1]));
   hRow.height = 20;
@@ -3909,15 +3836,13 @@ export const exportMasterUser = async (items: any[]) => {
     const row = ws.addRow([]);
     setC(row.getCell(1), r.Kode);
     setC(row.getCell(2), r.Nama);
-    setC(row.getCell(3), r.Cabang, "center");
-    setC(row.getCell(4), r.Aktif, "center");
+    setC(row.getCell(3), r.Akses, "center");
     row.height = 16;
   }
 
   ws.getColumn(1).width = 14;
   ws.getColumn(2).width = 30;
-  ws.getColumn(3).width = 10;
-  ws.getColumn(4).width = 10;
+  ws.getColumn(3).width = 18;
 
   const buf = await wb.xlsx.writeBuffer();
   saveAs(new Blob([buf]), "Master_User.xlsx");
@@ -4651,7 +4576,7 @@ export const exportRiwayatPenjualan = async (
     cell.border = borderAll;
     cell.font = { bold: isBold, size: 10 };
     cell.alignment = { vertical: "middle", horizontal: align };
-    if (numFormat) cell.numFormat = numFormat;
+    if (numFormat) cell.numFmt = numFormat;
   };
 
   // ── 1. TITLE / JUDUL LAPORAN ───────────────────────────────────────
@@ -4762,12 +4687,7 @@ export const exportRiwayatPenjualan = async (
   const blob = new Blob([buffer], {
     type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
   });
-  
-  const link = document.createElement("a");
-  link.href = URL.createObjectURL(blob);
-  link.download = `Laporan_Penjualan_${startDate}_to_${endDate}.xlsx`;
-  link.click();
-  URL.revokeObjectURL(link.href);
+  return await promptSaveAs(blob, `Laporan_Riwayat_Penjualan_${startDate}_to_${endDate}.xlsx`);
 };
 
 
@@ -4822,7 +4742,7 @@ export const exportReturPembelian = async (
     cell.border = borderAll;
     cell.font = { size: 10, bold: bold, name: "Courier New" };
     cell.alignment = { vertical: "middle", horizontal: "right" };
-    cell.numFormat = "#,##0"; // Format Rupiah Akuntansi
+    cell.numFmt = "#,##0"; // Format Rupiah Akuntansi
   };
 
   // Judul Dokumen Atas Excel
@@ -4904,15 +4824,10 @@ export const exportReturPembelian = async (
   ws.getColumn(6).width = 16;  // Total Bruto
   ws.getColumn(7).width = 25;  // Keterangan
 
-  // Proses download file .xlsx dari browser kasir
+  // Proses download file .xlsx dari browser kasir (bisa pilih folder simpan)
   const buf = await wb.xlsx.writeBuffer();
   const blob = new Blob([buf], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
-  const url = window.URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = `Laporan_Retur_Pembelian_${startDate}_smd_${endDate}.xlsx`;
-  a.click();
-  window.URL.revokeObjectURL(url);
+  return await promptSaveAs(blob, `Laporan_Retur_Pembelian_${startDate}_to_${endDate}.xlsx`);
 };
 
 // ─────────────────────────────────────────────────────────────────────
@@ -4927,6 +4842,14 @@ export interface ExportColumn {
   width?: number;
   currency?: boolean; // format "Rp #,##0"
   align?: "left" | "center" | "right";
+  // ⬅️ BARU: untuk kolom yang isinya TIDAK ada di row apa adanya (mis.
+  // status close yang disimpan sebagai 0/1 tapi mau ditulis sebagai
+  // "CLOSED"/"BELUM DITUTUP"). Kalau diisi, `map` yang menang dan `key`
+  // hanya dipakai untuk menentukan nama kolom di sheet Excel.
+  // PENTING: baris `ws.columns` (yang arreglar header + lebar) tetap pakai
+  // `key`, karena ExcelJS butuh nama kolom yang valid — makanya `key`
+  // tidak boleh kosong walau isinya dikirim lewat `map`.
+  map?: (row: any) => any;
 }
 
 export interface ExportOptions {
@@ -4985,7 +4908,15 @@ export const exportToExcel = async ({
   // ── Data ──
   rows.forEach((item) => {
     const rowData: Record<string, any> = {};
-    columns.forEach((c) => (rowData[c.key] = item[c.key] ?? (c.currency ? 0 : "-")));
+    columns.forEach((c) => {
+      // map didahulukan supaya kolom turunan bisa dipakai di sheet yang
+      // sama dengan kolom biasa.
+      if (c.map) {
+        rowData[c.key] = c.map(item);
+        return;
+      }
+      rowData[c.key] = item[c.key] ?? (c.currency ? 0 : "-");
+    });
     const row = ws.addRow(rowData);
 
     row.eachCell((cell, colNumber) => {
@@ -5008,5 +4939,2371 @@ export const exportToExcel = async ({
   const blob = new Blob([buf], {
     type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
   });
-  saveAs(blob, `${filenamePrefix}_${new Date().toISOString().slice(0, 10)}.xlsx`);
+  return await promptSaveAs(blob, `${filenamePrefix}_${new Date().toISOString().slice(0, 10)}.xlsx`);
+};
+
+export const exportLaporanPersediaan = async (
+  items: any[],
+  gudangLabel?: string,
+) => {
+  const wb = new ExcelJS.Workbook();
+  const ws = wb.addWorksheet("Laporan Persediaan");
+
+  const borderAll: Partial<ExcelJS.Borders> = {
+    top: { style: "thin" },
+    left: { style: "thin" },
+    bottom: { style: "thin" },
+    right: { style: "thin" },
+  };
+  const headerFill: ExcelJS.Fill = {
+    type: "pattern",
+    pattern: "solid",
+    fgColor: { argb: "FF2E7D32" },
+  };
+  const headerFont: Partial<ExcelJS.Font> = {
+    bold: true,
+    color: { argb: "FFFFFFFF" },
+    size: 10,
+  };
+  const totalFill: ExcelJS.Fill = {
+    type: "pattern",
+    pattern: "solid",
+    fgColor: { argb: "FFE8F5E9" },
+  };
+
+  const setH = (cell: ExcelJS.Cell, val: string) => {
+    cell.value = val;
+    cell.font = headerFont;
+    cell.fill = headerFill;
+    cell.border = borderAll;
+    cell.alignment = { vertical: "middle", horizontal: "center" };
+  };
+  const setC = (
+    cell: ExcelJS.Cell,
+    val: any,
+    align: "left" | "center" | "right" = "left",
+    bold = false,
+  ) => {
+    cell.value = val;
+    cell.border = borderAll;
+    cell.font = { size: 10, bold };
+    cell.alignment = { vertical: "middle", horizontal: align };
+  };
+  const setN = (cell: ExcelJS.Cell, val: number, bold = false) => {
+    cell.value = Number(val) || 0;
+    cell.border = borderAll;
+    cell.font = { size: 10, bold };
+    cell.numFmt = "#,##0";
+    cell.alignment = { vertical: "middle", horizontal: "right" };
+  };
+
+  ws.mergeCells("A1:E1");
+  ws.getCell("A1").value = gudangLabel
+    ? `Laporan Persediaan — ${gudangLabel}`
+    : "Laporan Persediaan";
+  ws.getCell("A1").font = { bold: true, size: 12 };
+  ws.addRow([]);
+
+  const cols = ["Kode", "Nama", "Satuan", "Gudang", "Stok"];
+  const hRow = ws.addRow(cols);
+  hRow.eachCell((cell, i) => setH(cell, cols[i - 1]));
+  hRow.height = 20;
+
+  const posFill: ExcelJS.Fill = {
+    type: "pattern",
+    pattern: "solid",
+    fgColor: { argb: "FFE8F5E9" },
+  };
+  const negFill: ExcelJS.Fill = {
+    type: "pattern",
+    pattern: "solid",
+    fgColor: { argb: "FFFFEBEE" },
+  };
+
+  let totalStok = 0;
+  for (const r of items) {
+    const row = ws.addRow([]);
+    setC(row.getCell(1), r.kode, "center");
+    setC(row.getCell(2), r.nama);
+    setC(row.getCell(3), r.satuan, "center");
+    setC(row.getCell(4), r.gudangNama || r.gudang, "center");
+    setN(row.getCell(5), r.stok);
+    const stokVal = Number(r.stok || 0);
+    if (stokVal > 0) {
+      row.getCell(5).font = { size: 10, bold: true, color: { argb: "FF2E7D32" } };
+      row.getCell(5).fill = posFill;
+    } else if (stokVal < 0) {
+      row.getCell(5).font = { size: 10, bold: true, color: { argb: "FFCC0000" } };
+      row.getCell(5).fill = negFill;
+    }
+    totalStok += stokVal;
+    row.height = 16;
+  }
+
+  const footRow = ws.addRow([]);
+  for (let c = 1; c <= 5; c++) {
+    footRow.getCell(c).border = borderAll;
+    footRow.getCell(c).fill = totalFill;
+  }
+  setC(footRow.getCell(2), "TOTAL", "right", true);
+  setN(footRow.getCell(5), totalStok, true);
+  footRow.height = 18;
+
+  ws.getColumn(1).width = 14;
+  ws.getColumn(2).width = 40;
+  ws.getColumn(3).width = 10;
+  ws.getColumn(4).width = 22;
+  ws.getColumn(5).width = 12;
+
+  const buf = await wb.xlsx.writeBuffer();
+  saveAs(new Blob([buf]), `Laporan_Persediaan.xlsx`);
+};
+
+// ── Helper unduhan: Save As dialog (File System Access API) + fallback ──
+// return: true = berhasil disimpan, false = dibatalkan user (AbortError)
+const promptSaveAs = async (blob: Blob, defaultName: string): Promise<boolean> => {
+  const w = window as any;
+  if (typeof w.showSaveFilePicker === "function") {
+    try {
+      const handle = await w.showSaveFilePicker({
+        suggestedName: defaultName,
+        types: [
+          {
+            description: "Excel Workbook",
+            accept: {
+              "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet":
+                [".xlsx"],
+            },
+          },
+        ],
+      });
+      const writable = await handle.createWritable();
+      await writable.write(blob);
+      await writable.close();
+      return true;
+    } catch (e: any) {
+      // AbortError = user membatalkan dialog pilih lokasi → bukan error
+      if (e?.name === "AbortError") return false;
+      // Kegagalan lain pada API → lanjut ke fallback download biasa
+      console.warn("showSaveFilePicker gagal, fallback ke download:", e);
+    }
+  }
+  saveAs(blob, defaultName);
+  return true;
+};
+
+// Label & nama file selalu mengikuti periode filter yang aktif, bukan tanggal
+// hari ini — supaya isi export identik dengan yang tampil di frontend.
+const dmyLabel = (val?: string) => {
+  if (!val) return "";
+  const m = String(val).match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (m) return `${m[3]}/${m[2]}/${m[1]}`; // dd/mm/yyyy
+  return String(val);
+};
+const periodeLabel = (awal?: string, akhir?: string) => {
+  if (awal && akhir) return `${dmyLabel(awal)}  s/d  ${dmyLabel(akhir)}`;
+  if (awal) return `mulai ${dmyLabel(awal)}`;
+  if (akhir) return `sampai ${dmyLabel(akhir)}`;
+  return "Semua Periode";
+};
+const periodeName = (awal?: string, akhir?: string) => {
+  if (awal && akhir) return `${awal}_sd_${akhir}`;
+  if (awal) return `mulai_${awal}`;
+  if (akhir) return `sampai_${akhir}`;
+  return "semua_periode";
+};
+
+const kartuStokBorder: Partial<ExcelJS.Borders> = {
+  top: { style: "thin" },
+  left: { style: "thin" },
+  bottom: { style: "thin" },
+  right: { style: "thin" },
+};
+const kartuStokHeaderFill: ExcelJS.Fill = {
+  type: "pattern",
+  pattern: "solid",
+  fgColor: { argb: "FF283D72" },
+};
+const kartuStokHeaderFont: Partial<ExcelJS.Font> = {
+  bold: true,
+  color: { argb: "FFFFFFFF" },
+  size: 10,
+  name: "Arial",
+};
+const kartuStokTotalFill: ExcelJS.Fill = {
+  type: "pattern",
+  pattern: "solid",
+  fgColor: { argb: "FFE8F0FE" },
+};
+
+type KartuStokAlign = "left" | "center" | "right";
+
+function ksHeader(ws: ExcelJS.Worksheet, row: ExcelJS.Row, cols: string[]) {
+  row.height = 20;
+  cols.forEach((c, i) => {
+    const cell = row.getCell(i + 1);
+    cell.value = c;
+    cell.font = kartuStokHeaderFont;
+    cell.fill = kartuStokHeaderFill;
+    cell.border = kartuStokBorder;
+    cell.alignment = { vertical: "middle", horizontal: "center" };
+  });
+}
+
+function ksCell(
+  ws: ExcelJS.Worksheet,
+  row: ExcelJS.Row,
+  col: number,
+  val: any,
+  align: KartuStokAlign = "left",
+  bold = false,
+) {
+  const cell = row.getCell(col);
+  cell.value = val;
+  cell.border = kartuStokBorder;
+  cell.font = { size: 10, bold, name: "Arial" };
+  cell.alignment = { vertical: "middle", horizontal: align };
+}
+
+function ksNum(
+  ws: ExcelJS.Worksheet,
+  row: ExcelJS.Row,
+  col: number,
+  val: number,
+  bold = false,
+) {
+  const cell = row.getCell(col);
+  cell.value = Number(val) || 0;
+  cell.border = kartuStokBorder;
+  cell.font = { size: 10, bold, name: "Arial" };
+  // Angka polos (tanpa pemisah ribuan) supaya tidak gagal parse, ikut pola SO
+  cell.numFmt = "0.00";
+  cell.alignment = { vertical: "middle", horizontal: "right" };
+}
+
+function ksDate(val: any): string {
+  if (!val) return "";
+  const s = String(val);
+  if (/^\d{4}-\d{2}-\d{2}/.test(s)) {
+    const parts = s.split(/[-T ]/);
+    const y = parts[0];
+    const m = parts[1];
+    const d = parts[2];
+    return `${d}-${m}-${y}`; // dd-mm-yyyy
+  }
+  return s;
+}
+
+// ── Browse PO — Export Detail ──────────────────────────────────────────
+// Format: header PO ditulis sekali per nomor (grouped), lalu tiap item
+// barang di bawahnya — pola sama seperti exportSoDetail.
+interface PoDetailFlatRow {
+  Nomor: string;
+  Tanggal: string;
+  Memo: string;
+  Supplier: string;
+  Pajak: string;
+  Total: number;
+  Ppn: number;
+  Status: string;
+  Receipt: string;
+  NoUrut: number;
+  Kode: string;
+  Nama: string;
+  Satuan: string;
+  Qty: number;
+  Harga: number;
+  DiscPr: number;
+  QtyTerima: number;
+}
+
+export const exportPoDetail = async (
+  rows: PoDetailFlatRow[],
+  startDate?: string,
+  endDate?: string,
+): Promise<boolean> => {
+  const ws = new ExcelJS.Workbook().addWorksheet("PO Detail");
+
+  ws.mergeCells("A1:R1");
+  ws.getCell("A1").value = `Browse PO — Detail (Periode : ${periodeLabel(startDate, endDate)})`;
+  ws.getCell("A1").font = { size: 10, bold: true, name: "Arial" };
+  ws.addRow([]);
+
+  const cols = [
+    "Nomor", "Tanggal", "Memo", "Supplier", "Pajak", "Total", "PPN",
+    "Status", "Receipt", "No. Urut", "Kode Barang", "Nama Barang", "Satuan",
+    "Qty", "Harga", "Disc (%)", "Qty Terima", "Nilai",
+  ];
+  ksHeader(ws, ws.addRow(cols), cols);
+
+  let totalNilai = 0;
+  let lastNomor: string | null = null;
+  for (const r of rows) {
+    const row = ws.addRow([]);
+    const isRepeat = r.Nomor === lastNomor;
+
+    if (!isRepeat) {
+      ksCell(ws, row, 1, r.Nomor, "left", true);
+      ksCell(ws, row, 2, ksDate(r.Tanggal), "center");
+      ksCell(ws, row, 3, r.Memo || "-", "left");
+      ksCell(ws, row, 4, r.Supplier, "left");
+      ksCell(ws, row, 5, r.Pajak, "center");
+      ksNum(ws, row, 6, r.Total, true);
+      ksNum(ws, row, 7, r.Ppn);
+      ksCell(ws, row, 8, r.Status, "center");
+      ksCell(ws, row, 9, r.Receipt, "center");
+    }
+
+    ksNum(ws, row, 10, r.NoUrut || 0);
+    ksCell(ws, row, 11, r.Kode, "center");
+    ksCell(ws, row, 12, r.Nama, "left");
+    ksCell(ws, row, 13, r.Satuan, "center");
+    ksNum(ws, row, 14, r.Qty);
+    ksNum(ws, row, 15, r.Harga);
+    ksNum(ws, row, 16, r.DiscPr || 0);
+    ksNum(ws, row, 17, r.QtyTerima || 0);
+    const nilai =
+      Number(r.Qty || 0) * Number(r.Harga || 0) -
+      (Number(r.Qty || 0) * Number(r.Harga || 0) * Number(r.DiscPr || 0)) / 100;
+    ksNum(ws, row, 18, nilai, true);
+    totalNilai += nilai;
+    row.height = 16;
+    lastNomor = r.Nomor;
+  }
+
+  const foot = ws.addRow([]);
+  for (let c = 1; c <= 18; c++) {
+    foot.getCell(c).border = kartuStokBorder;
+    foot.getCell(c).fill = kartuStokTotalFill;
+  }
+  ksCell(ws, foot, 11, "TOTAL NILAI", "right", true);
+  ksNum(ws, foot, 18, totalNilai, true);
+  foot.height = 18;
+
+  const widths = [18, 12, 26, 26, 9, 16, 14, 10, 10, 9, 12, 26, 10, 10, 14, 9, 10, 16];
+  widths.forEach((w, i) => {
+    ws.getColumn(i + 1).width = w;
+  });
+  ws.views = [{ state: "frozen", ySplit: 3 }];
+
+  const buf = await ws.workbook.xlsx.writeBuffer();
+  const blob = new Blob([buf], {
+    type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  });
+  return await promptSaveAs(blob, `PO_Detail_${periodeName(startDate, endDate)}.xlsx`);
+};
+
+// ── Browse BPB — Export Detail ─────────────────────────────────────────
+interface BpbDetailFlatRow {
+  Nomor: string;
+  Tanggal: string;
+  NomorPO: string;
+  Supplier: string;
+  Gudang: string;
+  Memo: string;
+  IsInvoice: string;
+  NoUrut: number;
+  Barcode: string;
+  NamaBarang: string;
+  Satuan: string;
+  Qty: number;
+  TglExpired: string;
+}
+
+export const exportBpbDetail = async (
+  rows: BpbDetailFlatRow[],
+  startDate?: string,
+  endDate?: string,
+): Promise<boolean> => {
+  const ws = new ExcelJS.Workbook().addWorksheet("BPB Detail");
+
+  ws.mergeCells("A1:M1");
+  ws.getCell("A1").value = `Browse BPB — Detail (Periode : ${periodeLabel(startDate, endDate)})`;
+  ws.getCell("A1").font = { size: 10, bold: true, name: "Arial" };
+  ws.addRow([]);
+
+  const cols = [
+    "Nomor BPB", "Tanggal", "Nomor PO", "Supplier", "Gudang", "Memo",
+    "Sudah Invoice", "No. Urut", "Barcode", "Nama Barang", "Satuan",
+    "Qty", "Tgl Expired",
+  ];
+  ksHeader(ws, ws.addRow(cols), cols);
+
+  let lastNomor: string | null = null;
+  for (const r of rows) {
+    const row = ws.addRow([]);
+    const isRepeat = r.Nomor === lastNomor;
+
+    if (!isRepeat) {
+      ksCell(ws, row, 1, r.Nomor, "left", true);
+      ksCell(ws, row, 2, ksDate(r.Tanggal), "center");
+      ksCell(ws, row, 3, r.NomorPO || "-", "center");
+      ksCell(ws, row, 4, r.Supplier, "left");
+      ksCell(ws, row, 5, r.Gudang, "left");
+      ksCell(ws, row, 6, r.Memo || "-", "left");
+      ksCell(ws, row, 7, r.IsInvoice, "center");
+    }
+
+    ksNum(ws, row, 8, r.NoUrut || 0);
+    ksCell(ws, row, 9, r.Barcode, "center");
+    ksCell(ws, row, 10, r.NamaBarang, "left");
+    ksCell(ws, row, 11, r.Satuan, "center");
+    ksNum(ws, row, 12, r.Qty);
+    ksCell(ws, row, 13, r.TglExpired || "-", "center");
+    row.height = 16;
+    lastNomor = r.Nomor;
+  }
+
+  const widths = [18, 12, 16, 26, 16, 26, 13, 9, 12, 26, 10, 10, 14];
+  widths.forEach((w, i) => {
+    ws.getColumn(i + 1).width = w;
+  });
+  ws.views = [{ state: "frozen", ySplit: 3 }];
+
+  const buf = await ws.workbook.xlsx.writeBuffer();
+  const blob = new Blob([buf], {
+    type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  });
+  return await promptSaveAs(blob, `BPB_Detail_${periodeName(startDate, endDate)}.xlsx`);
+};
+
+// ── Browse Invoice — Export Detail ─────────────────────────────────────
+interface InvDetailFlatRow {
+  Nomor: string;
+  Nobukti: string;
+  Tanggal: string;
+  JatuhTempo: string;
+  Memo: string;
+  Supplier: string;
+  NoPajak: string;
+  Total: number;
+  Retur: number;
+  Ppn: number;
+  Bayar: number;
+  Freight: number;
+  StatusBayar: string;
+  Pajak: string;
+  NomorBPB: string;
+  NoUrut: number;
+  Barcode: string;
+  NamaBarang: string;
+  Satuan: string;
+  Qty: number;
+  Harga: number;
+  DiscPr: number;
+}
+
+export const exportInvDetail = async (
+  rows: InvDetailFlatRow[],
+  startDate?: string,
+  endDate?: string,
+): Promise<boolean> => {
+  const ws = new ExcelJS.Workbook().addWorksheet("Invoice Detail");
+
+  ws.mergeCells("A1:V1");
+  ws.getCell("A1").value = `Browse Invoice — Detail (Periode : ${periodeLabel(startDate, endDate)})`;
+  ws.getCell("A1").font = { size: 10, bold: true, name: "Arial" };
+  ws.addRow([]);
+
+  const cols = [
+    "Nomor Invoice", "No. Bukti", "Tanggal", "Jatuh Tempo", "Memo", "Supplier",
+    "No. Pajak", "Total", "Retur", "PPN", "Bayar", "Freight", "Status Bayar",
+    "Pajak", "Nomor BPB", "No. Urut", "Barcode", "Nama Barang", "Satuan",
+    "Qty", "Harga", "Disc (%)",
+  ];
+  ksHeader(ws, ws.addRow(cols), cols);
+
+  let totalNilai = 0;
+  let lastNomor: string | null = null;
+  for (const r of rows) {
+    const row = ws.addRow([]);
+    const isRepeat = r.Nomor === lastNomor;
+
+    if (!isRepeat) {
+      ksCell(ws, row, 1, r.Nomor, "left", true);
+      ksCell(ws, row, 2, r.Nobukti, "center");
+      ksCell(ws, row, 3, ksDate(r.Tanggal), "center");
+      ksCell(ws, row, 4, ksDate(r.JatuhTempo), "center");
+      ksCell(ws, row, 5, r.Memo || "-", "left");
+      ksCell(ws, row, 6, r.Supplier, "left");
+      ksCell(ws, row, 7, r.NoPajak || "-", "center");
+      ksNum(ws, row, 8, r.Total, true);
+      ksNum(ws, row, 9, r.Retur);
+      ksNum(ws, row, 10, r.Ppn);
+      ksNum(ws, row, 11, r.Bayar);
+      ksNum(ws, row, 12, r.Freight);
+      ksCell(ws, row, 13, r.StatusBayar, "center");
+      ksCell(ws, row, 14, r.Pajak, "center");
+      ksCell(ws, row, 15, r.NomorBPB || "-", "center");
+    }
+
+    ksNum(ws, row, 16, r.NoUrut || 0);
+    ksCell(ws, row, 17, r.Barcode, "center");
+    ksCell(ws, row, 18, r.NamaBarang, "left");
+    ksCell(ws, row, 19, r.Satuan, "center");
+    ksNum(ws, row, 20, r.Qty);
+    ksNum(ws, row, 21, r.Harga);
+    ksNum(ws, row, 22, r.DiscPr || 0);
+    totalNilai +=
+      Number(r.Qty || 0) * Number(r.Harga || 0) -
+      (Number(r.Qty || 0) * Number(r.Harga || 0) * Number(r.DiscPr || 0)) / 100;
+    row.height = 16;
+    lastNomor = r.Nomor;
+  }
+
+  const foot = ws.addRow([]);
+  for (let c = 1; c <= 22; c++) {
+    foot.getCell(c).border = kartuStokBorder;
+    foot.getCell(c).fill = kartuStokTotalFill;
+  }
+  ksCell(ws, foot, 17, "TOTAL NILAI", "right", true);
+  ksNum(ws, foot, 20, totalNilai, true);
+  foot.height = 18;
+
+  const widths = [16, 14, 12, 12, 22, 24, 14, 14, 14, 12, 14, 12, 10, 8, 14, 9, 12, 26, 10, 9, 14, 9];
+  widths.forEach((w, i) => {
+    ws.getColumn(i + 1).width = w;
+  });
+  ws.views = [{ state: "frozen", ySplit: 3 }];
+
+  const buf = await ws.workbook.xlsx.writeBuffer();
+  const blob = new Blob([buf], {
+    type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  });
+  return await promptSaveAs(blob, `Invoice_Detail_${periodeName(startDate, endDate)}.xlsx`);
+};
+
+// ── Browse Pembayaran Supplier — Export & Export Detail ────────────────
+// Export        : 1 baris = 1 bukti bayar (header saja).
+// Export Detail : 1 baris = 1 invoice yang dibayar (flat, tidak grouped).
+interface BayarSupHeaderRow {
+  NOMOR: string;
+  TANGGAL: string;
+  MEMO: string;
+  SUP_KODE: string;
+  SUP_NAMA: string;
+  REK_KODE: string;
+  REK_NAMA: string;
+  CARA_BAYAR: string;
+  NO_GIRO: string | null;
+  TGL_CAIR: string | null;
+  TOTAL_BAYAR: number;
+  TAX: string;
+}
+
+export const exportBayarSupplier = async (
+  rows: BayarSupHeaderRow[],
+  startDate?: string,
+  endDate?: string,
+): Promise<boolean> => {
+  const ws = new ExcelJS.Workbook().addWorksheet("Pembayaran Supplier");
+
+  ws.mergeCells("A1:L1");
+  ws.getCell("A1").value = `Pembayaran Supplier (Periode : ${periodeLabel(startDate, endDate)})`;
+  ws.getCell("A1").font = { size: 10, bold: true, name: "Arial" };
+  ws.addRow([]);
+
+  const cols = [
+    "Nomor", "Tanggal", "Memo", "Kode Supplier", "Nama Supplier",
+    "Cara Bayar", "No. Giro", "Tgl Cair", "Rekening", "Total Bayar", "Pajak",
+  ];
+  ksHeader(ws, ws.addRow(cols), cols);
+
+  let totalBayar = 0;
+  for (const r of rows) {
+    const row = ws.addRow([]);
+    ksCell(ws, row, 1, r.NOMOR, "left", true);
+    ksCell(ws, row, 2, ksDate(r.TANGGAL), "center");
+    ksCell(ws, row, 3, r.MEMO || "-", "left");
+    ksCell(ws, row, 4, r.SUP_KODE, "center");
+    ksCell(ws, row, 5, r.SUP_NAMA, "left");
+    ksCell(ws, row, 6, r.CARA_BAYAR, "center");
+    ksCell(ws, row, 7, r.NO_GIRO || "-", "center");
+    ksCell(ws, row, 8, ksDate(r.TGL_CAIR), "center");
+    ksCell(ws, row, 9, r.REK_NAMA, "left");
+    ksNum(ws, row, 10, r.TOTAL_BAYAR, true);
+    ksCell(ws, row, 11, r.TAX, "center");
+    totalBayar += Number(r.TOTAL_BAYAR || 0);
+    row.height = 16;
+  }
+
+  const foot = ws.addRow([]);
+  for (let c = 1; c <= 11; c++) {
+    foot.getCell(c).border = kartuStokBorder;
+    foot.getCell(c).fill = kartuStokTotalFill;
+  }
+  ksCell(ws, foot, 5, "TOTAL BAYAR", "right", true);
+  ksNum(ws, foot, 10, totalBayar, true);
+  foot.height = 18;
+
+  const widths = [18, 12, 24, 13, 26, 11, 13, 12, 22, 16, 9];
+  widths.forEach((w, i) => {
+    ws.getColumn(i + 1).width = w;
+  });
+  ws.views = [{ state: "frozen", ySplit: 3 }];
+
+  const buf = await ws.workbook.xlsx.writeBuffer();
+  const blob = new Blob([buf], {
+    type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  });
+  return await promptSaveAs(blob, `PembayaranSupplier_${periodeName(startDate, endDate)}.xlsx`);
+};
+
+interface BayarSupDetailFlatRow {
+  NOMOR: string;
+  TANGGAL: string;
+  MEMO: string;
+  SUP_KODE: string;
+  SUP_NAMA: string;
+  REK_NAMA: string;
+  CARA_BAYAR: string;
+  NO_GIRO: string | null;
+  TGL_CAIR: string | null;
+  TOTAL_BAYAR: number;
+  TAX: string;
+  NoInvoice: string;
+  TglInvoice: string;
+  TotalInvoice: number;
+  NilaiBayar: number;
+  StatusBayar: string;
+}
+
+export const exportBayarSupplierDetail = async (
+  rows: BayarSupDetailFlatRow[],
+  startDate?: string,
+  endDate?: string,
+): Promise<boolean> => {
+  const ws = new ExcelJS.Workbook().addWorksheet("Pembayaran Supplier Detail");
+
+  ws.mergeCells("A1:P1");
+  ws.getCell("A1").value = `Pembayaran Supplier — Detail (Periode : ${periodeLabel(startDate, endDate)})`;
+  ws.getCell("A1").font = { size: 10, bold: true, name: "Arial" };
+  ws.addRow([]);
+
+  const cols = [
+    "Nomor", "Tanggal", "Memo", "Kode Supplier", "Nama Supplier", "Cara Bayar",
+    "No. Giro", "Tgl Cair", "Rekening", "Total Bayar", "Pajak",
+    "No. Invoice", "Tgl Invoice", "Total Invoice", "Nilai Bayar", "Status Bayar",
+  ];
+  ksHeader(ws, ws.addRow(cols), cols);
+
+  let totalBayar = 0;
+  for (const r of rows) {
+    const row = ws.addRow([]);
+    ksCell(ws, row, 1, r.NOMOR, "left", true);
+    ksCell(ws, row, 2, ksDate(r.TANGGAL), "center");
+    ksCell(ws, row, 3, r.MEMO || "-", "left");
+    ksCell(ws, row, 4, r.SUP_KODE, "center");
+    ksCell(ws, row, 5, r.SUP_NAMA, "left");
+    ksCell(ws, row, 6, r.CARA_BAYAR, "center");
+    ksCell(ws, row, 7, r.NO_GIRO || "-", "center");
+    ksCell(ws, row, 8, ksDate(r.TGL_CAIR), "center");
+    ksCell(ws, row, 9, r.REK_NAMA, "left");
+    ksNum(ws, row, 10, r.TOTAL_BAYAR, true);
+    ksCell(ws, row, 11, r.TAX, "center");
+    ksCell(ws, row, 12, r.NoInvoice, "center");
+    ksCell(ws, row, 13, ksDate(r.TglInvoice), "center");
+    ksNum(ws, row, 14, r.TotalInvoice);
+    ksNum(ws, row, 15, r.NilaiBayar, true);
+    ksCell(ws, row, 16, r.StatusBayar, "center");
+    totalBayar += Number(r.NilaiBayar || 0);
+    row.height = 16;
+  }
+
+  const foot = ws.addRow([]);
+  for (let c = 1; c <= 16; c++) {
+    foot.getCell(c).border = kartuStokBorder;
+    foot.getCell(c).fill = kartuStokTotalFill;
+  }
+  ksCell(ws, foot, 5, "TOTAL BAYAR", "right", true);
+  ksNum(ws, foot, 15, totalBayar, true);
+  foot.height = 18;
+
+  const widths = [18, 12, 22, 13, 26, 11, 13, 12, 22, 16, 9, 16, 12, 14, 14, 11];
+  widths.forEach((w, i) => {
+    ws.getColumn(i + 1).width = w;
+  });
+  ws.views = [{ state: "frozen", ySplit: 3 }];
+
+  const buf = await ws.workbook.xlsx.writeBuffer();
+  const blob = new Blob([buf], {
+    type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  });
+  return await promptSaveAs(blob, `PembayaranSupplier_Detail_${periodeName(startDate, endDate)}.xlsx`);
+};
+
+// ── Browse Retur Pembelian — Export Detail ─────────────────────────────
+// Format sama seperti exportSoDetail (header ditulis sekali per nomor),
+// dengan susunan kolom menyesuaikan data retur.
+interface ReturDetailFlatRow {
+  Nomor: string;
+  Tanggal: string;
+  NomorInvoice: string;
+  Supplier: string;
+  Memo: string;
+  Pajak: string;
+  Total: number;
+  NoUrut: number;
+  Kode: string;
+  NamaBarang: string;
+  Satuan: string;
+  Qty: number;
+  Harga: number;
+  DiscPr: number;
+}
+
+export const exportReturPembelianDetail = async (
+  rows: ReturDetailFlatRow[],
+  startDate?: string,
+  endDate?: string,
+): Promise<boolean> => {
+  const ws = new ExcelJS.Workbook().addWorksheet("Retur Detail");
+
+  ws.mergeCells("A1:N1");
+  ws.getCell("A1").value = `Browse Retur Pembelian — Detail (Periode : ${periodeLabel(startDate, endDate)})`;
+  ws.getCell("A1").font = { size: 10, bold: true, name: "Arial" };
+  ws.addRow([]);
+
+  const cols = [
+    "Nomor Retur", "Tanggal", "Nomor Invoice", "Supplier", "Memo", "Pajak",
+    "Total", "No. Urut", "Kode Barang", "Nama Barang", "Satuan",
+    "Qty", "Harga", "Disc (%)",
+  ];
+  ksHeader(ws, ws.addRow(cols), cols);
+
+  let totalNilai = 0;
+  let lastNomor: string | null = null;
+  for (const r of rows) {
+    const row = ws.addRow([]);
+    const isRepeat = r.Nomor === lastNomor;
+
+    if (!isRepeat) {
+      ksCell(ws, row, 1, r.Nomor, "left", true);
+      ksCell(ws, row, 2, ksDate(r.Tanggal), "center");
+      ksCell(ws, row, 3, r.NomorInvoice || "-", "center");
+      ksCell(ws, row, 4, r.Supplier, "left");
+      ksCell(ws, row, 5, r.Memo || "-", "left");
+      ksCell(ws, row, 6, r.Pajak, "center");
+      ksNum(ws, row, 7, r.Total, true);
+    }
+
+    ksNum(ws, row, 8, r.NoUrut || 0);
+    ksCell(ws, row, 9, r.Kode, "center");
+    ksCell(ws, row, 10, r.NamaBarang, "left");
+    ksCell(ws, row, 11, r.Satuan, "center");
+    ksNum(ws, row, 12, r.Qty);
+    ksNum(ws, row, 13, r.Harga);
+    ksNum(ws, row, 14, r.DiscPr || 0);
+    totalNilai +=
+      Number(r.Qty || 0) * Number(r.Harga || 0) -
+      (Number(r.Qty || 0) * Number(r.Harga || 0) * Number(r.DiscPr || 0)) / 100;
+    row.height = 16;
+    lastNomor = r.Nomor;
+  }
+
+  const foot = ws.addRow([]);
+  for (let c = 1; c <= 14; c++) {
+    foot.getCell(c).border = kartuStokBorder;
+    foot.getCell(c).fill = kartuStokTotalFill;
+  }
+  ksCell(ws, foot, 9, "TOTAL NILAI", "right", true);
+  ksNum(ws, foot, 14, totalNilai, true);
+  foot.height = 18;
+
+  const widths = [16, 12, 16, 26, 24, 9, 14, 9, 12, 26, 10, 9, 14, 9];
+  widths.forEach((w, i) => {
+    ws.getColumn(i + 1).width = w;
+  });
+  ws.views = [{ state: "frozen", ySplit: 3 }];
+
+  const buf = await ws.workbook.xlsx.writeBuffer();
+  const blob = new Blob([buf], {
+    type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  });
+  return await promptSaveAs(blob, `ReturPembelian_Detail_${periodeName(startDate, endDate)}.xlsx`);
+};
+
+interface KartuStokSummaryRow {
+  kode: string | number;
+  nama: string;
+  jenisBarang: string;
+  hrgBeli: number;
+  awal: number;
+  stokIn: number;
+  stokOut: number;
+  akhir: number;
+}
+interface KartuStokMutasiRow {
+  kode: string | number;
+  noreferensi: string;
+  tanggal: string;
+  keterangan: string;
+  gudang: string;
+  gudangNama: string;
+  expired: string;
+  hargabeli: number;
+  stokIn: number;
+  stokOut: number;
+}
+
+// ── EXPORT (ringkasan, tanpa mutasi) ──────────────────────────────────
+export const exportKartuStok = async (
+  items: KartuStokSummaryRow[],
+  tglAwal?: string,
+  tglAkhir?: string,
+): Promise<boolean> => {
+  const ws = new ExcelJS.Workbook().addWorksheet("Kartu Stok");
+
+  // Baris info
+  ws.mergeCells("A1:H1");
+  ws.getCell("A1").value = `Tanggal  : ${periodeLabel(tglAwal, tglAkhir)}`;
+  ws.getCell("A1").font = { size: 10, name: "Arial" };
+  ws.addRow([]);
+
+  const cols = [
+    "Kode",
+    "Nama",
+    "Jenis Barang",
+    "Harga Beli",
+    "Awal",
+    "In",
+    "Out",
+    "Akhir",
+  ];
+  ksHeader(ws, ws.addRow(cols), cols);
+
+  let totalAwal = 0;
+  let totalIn = 0;
+  let totalOut = 0;
+  let totalAkhir = 0;
+  for (const r of items) {
+    const row = ws.addRow([]);
+    ksCell(ws, row, 1, r.kode, "center");
+    ksCell(ws, row, 2, r.nama, "left");
+    ksCell(ws, row, 3, r.jenisBarang, "left");
+    ksNum(ws, row, 4, r.hrgBeli);
+    ksNum(ws, row, 5, r.awal);
+    ksNum(ws, row, 6, r.stokIn);
+    ksNum(ws, row, 7, r.stokOut);
+    ksNum(ws, row, 8, r.akhir);
+    totalAwal += Number(r.awal || 0);
+    totalIn += Number(r.stokIn || 0);
+    totalOut += Number(r.stokOut || 0);
+    totalAkhir += Number(r.akhir || 0);
+    row.height = 16;
+  }
+
+  const foot = ws.addRow([]);
+  for (let c = 1; c <= 8; c++) {
+    foot.getCell(c).border = kartuStokBorder;
+    foot.getCell(c).fill = kartuStokTotalFill;
+  }
+  ksCell(ws, foot, 2, "TOTAL", "right", true);
+  ksNum(ws, foot, 5, totalAwal, true);
+  ksNum(ws, foot, 6, totalIn, true);
+  ksNum(ws, foot, 7, totalOut, true);
+  ksNum(ws, foot, 8, totalAkhir, true);
+  foot.height = 18;
+
+  ws.getColumn(1).width = 12;
+  ws.getColumn(2).width = 35;
+  ws.getColumn(3).width = 22;
+  ws.getColumn(4).width = 14;
+  ws.getColumn(5).width = 14;
+  ws.getColumn(6).width = 14;
+  ws.getColumn(7).width = 14;
+  ws.getColumn(8).width = 14;
+
+  const buf = await ws.workbook.xlsx.writeBuffer();
+  const blob = new Blob([buf], {
+    type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  });
+  return await promptSaveAs(blob, `KartuStok_${periodeName(tglAwal, tglAkhir)}.xlsx`);
+};
+
+// ── EXPORT DETAIL (ringkasan + mutasi, forward-fill ringkasan kosong) ──
+export const exportKartuStokDetail = async (
+  items: KartuStokSummaryRow[],
+  mutasi: KartuStokMutasiRow[],
+  tglAwal?: string,
+  tglAkhir?: string,
+): Promise<boolean> => {
+  // Kelompokkan mutasi per kode barang
+  const byKode = new Map<string | number, KartuStokMutasiRow[]>();
+  for (const m of mutasi) {
+    const key = m.kode;
+    if (!byKode.has(key)) byKode.set(key, []);
+    byKode.get(key)!.push(m);
+  }
+
+  const ws = new ExcelJS.Workbook().addWorksheet("Kartu Stok Detail");
+
+  ws.mergeCells("A1:P1");
+  ws.getCell("A1").value = `Tanggal  : ${periodeLabel(tglAwal, tglAkhir)}`;
+  ws.getCell("A1").font = { size: 10, name: "Arial" };
+  ws.addRow([]);
+
+  const cols = [
+    // Ringkasan barang (kolom 1-8)
+    "Kode",
+    "Nama",
+    "Jenis Barang",
+    "Harga Beli",
+    "Awal",
+    "In",
+    "Out",
+    "Akhir",
+    // Detail mutasi (kolom 9-16)
+    "Nomor",
+    "Tanggal",
+    "Keterangan",
+    "Gudang",
+    "In",
+    "Out",
+    "Expired",
+    "Harga Beli",
+  ];
+  ksHeader(ws, ws.addRow(cols), cols);
+
+  for (const r of items) {
+    const muts = byKode.get(r.kode) ?? [];
+    const rowCount = Math.max(muts.length, 1);
+
+    for (let i = 0; i < rowCount; i++) {
+      const m = muts[i];
+      const row = ws.addRow([]);
+
+      // Ringkasan hanya di baris pertama tiap barang; baris mutasi 2+ kosong
+      if (i === 0) {
+        ksCell(ws, row, 1, r.kode, "center");
+        ksCell(ws, row, 2, r.nama, "left");
+        ksCell(ws, row, 3, r.jenisBarang, "left");
+        ksNum(ws, row, 4, r.hrgBeli);
+        ksNum(ws, row, 5, r.awal);
+        ksNum(ws, row, 6, r.stokIn);
+        ksNum(ws, row, 7, r.stokOut);
+        ksNum(ws, row, 8, r.akhir);
+      }
+
+      // Detail mutasi (kalau ada mutasi utk baris ini)
+      if (m) {
+        ksCell(ws, row, 9, m.noreferensi, "left");
+        ksCell(ws, row, 10, ksDate(m.tanggal), "center");
+        ksCell(ws, row, 11, m.keterangan || "", "left");
+        ksCell(ws, row, 12, m.gudangNama || m.gudang || "", "left");
+        ksNum(ws, row, 13, m.stokIn);
+        ksNum(ws, row, 14, m.stokOut);
+        ksCell(ws, row, 15, ksDate(m.expired), "center");
+        ksNum(ws, row, 16, m.hargabeli);
+      }
+
+      row.height = 16;
+    }
+  }
+
+  const widths = [12, 32, 22, 14, 14, 14, 14, 14, 18, 13, 26, 18, 14, 14, 13, 14];
+  widths.forEach((w, i) => {
+    ws.getColumn(i + 1).width = w;
+  });
+
+  const buf = await ws.workbook.xlsx.writeBuffer();
+  const blob = new Blob([buf], {
+    type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  });
+  return await promptSaveAs(blob, `KartuStok_Detail_${periodeName(tglAwal, tglAkhir)}.xlsx`);
+};
+
+// ── Browse SO — Export & Export Detail ────────────────────────────────
+// Format mengikuti Kartu Stok (helper ksHeader/ksCell/ksNum/ksDate):
+// - Export        : hanya baris header SO, dengan baris TOTAL di bawahnya.
+// - Export Detail : header SO ditulis sekali per nomor (grouped), lalu tiap
+//   item barang di bawahnya — pola rapi seperti exportKartuStokDetail.
+interface SoHeaderRow {
+  Nomor: string;
+  Tanggal: string;
+  Memo: string;
+  Customer: string;
+  Salesman: string;
+  Closed: string;
+  Kirim: string;
+  Total: number;
+  UangMuka: number;
+  Ppn: number;
+  UserCreate: string;
+  DateCreate: string;
+}
+
+export const exportSo = async (
+  rows: SoHeaderRow[],
+  startDate?: string,
+  endDate?: string,
+): Promise<boolean> => {
+  const ws = new ExcelJS.Workbook().addWorksheet("SO");
+
+  ws.mergeCells("A1:L1");
+  ws.getCell("A1").value = `Tanggal  : ${periodeLabel(startDate, endDate)}`;
+  ws.getCell("A1").font = { size: 10, name: "Arial" };
+  ws.addRow([]);
+
+  const cols = [
+    "Nomor",
+    "Tanggal",
+    "Memo",
+    "Customer",
+    "Salesman",
+    "Closed",
+    "Kirim",
+    "Total",
+    "Uang Muka",
+    "PPN",
+    "User Create",
+    "Date Create",
+  ];
+  ksHeader(ws, ws.addRow(cols), cols);
+
+  let totalTotal = 0;
+  for (const r of rows) {
+    const row = ws.addRow([]);
+    ksCell(ws, row, 1, r.Nomor, "center", true);
+    ksCell(ws, row, 2, ksDate(r.Tanggal), "center");
+    ksCell(ws, row, 3, r.Memo || "-", "left");
+    ksCell(ws, row, 4, r.Customer, "left");
+    ksCell(ws, row, 5, r.Salesman, "left");
+    ksCell(ws, row, 6, r.Closed, "center");
+    ksCell(ws, row, 7, r.Kirim, "center");
+    ksNum(ws, row, 8, r.Total, true);
+    ksNum(ws, row, 9, r.UangMuka);
+    ksNum(ws, row, 10, r.Ppn);
+    ksCell(ws, row, 11, r.UserCreate, "center");
+    ksCell(ws, row, 12, r.DateCreate, "center");
+    totalTotal += Number(r.Total || 0);
+    row.height = 16;
+  }
+
+  const foot = ws.addRow([]);
+  for (let c = 1; c <= 12; c++) {
+    foot.getCell(c).border = kartuStokBorder;
+    foot.getCell(c).fill = kartuStokTotalFill;
+  }
+  ksCell(ws, foot, 4, "TOTAL", "right", true);
+  ksNum(ws, foot, 8, totalTotal, true);
+  foot.height = 18;
+
+  const widths = [18, 12, 26, 26, 14, 10, 10, 16, 14, 14, 14, 18];
+  widths.forEach((w, i) => {
+    ws.getColumn(i + 1).width = w;
+  });
+
+  const buf = await ws.workbook.xlsx.writeBuffer();
+  const blob = new Blob([buf], {
+    type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  });
+  return await promptSaveAs(blob, `SO_${periodeName(startDate, endDate)}.xlsx`);
+};
+
+interface SoDetailFlatRow {
+  Nomor: string;
+  Tanggal: string;
+  Memo: string;
+  Customer: string;
+  Salesman: string;
+  Closed: string;
+  Kirim: string;
+  Total: number;
+  Ppn: number;
+  UserCreate: string;
+  DateCreate: string;
+  Kode: string | number;
+  Nama: string;
+  Satuan: string;
+  Qty: number;
+  Harga: number;
+  DiscPr: number;
+  Terkirim: number;
+}
+
+export const exportSoDetail = async (
+  rows: SoDetailFlatRow[],
+  startDate?: string,
+  endDate?: string,
+): Promise<boolean> => {
+  const ws = new ExcelJS.Workbook().addWorksheet("SO Detail");
+
+  ws.mergeCells("A1:S1");
+  ws.getCell("A1").value = `Browse SO — Detail (Periode : ${periodeLabel(startDate, endDate)})`;
+  ws.getCell("A1").font = { size: 10, bold: true, name: "Arial" };
+  ws.addRow([]);
+
+  const cols = [
+    "Nomor",
+    "Tanggal",
+    "Memo",
+    "Customer",
+    "Salesman",
+    "Closed",
+    "Kirim",
+    "Total",
+    "PPN",
+    "User Create",
+    "Date Create",
+    "Kode Barang",
+    "Nama Barang",
+    "Satuan",
+    "Jumlah",
+    "Harga",
+    "Disc (%)",
+    "Nilai",
+    "Terkirim",
+  ];
+  ksHeader(ws, ws.addRow(cols), cols);
+
+  let totalNilai = 0;
+  let lastNomor: string | null = null;
+  for (const r of rows) {
+    const row = ws.addRow([]);
+    const isRepeat = r.Nomor === lastNomor;
+
+    // Kolom header hanya di baris pertama tiap nomor; baris item ke-2+ kosong
+    if (!isRepeat) {
+      ksCell(ws, row, 1, r.Nomor, "left", true);
+      ksCell(ws, row, 2, ksDate(r.Tanggal), "center");
+      ksCell(ws, row, 3, r.Memo || "-", "left");
+      ksCell(ws, row, 4, r.Customer, "left");
+      ksCell(ws, row, 5, r.Salesman, "left");
+      ksCell(ws, row, 6, r.Closed, "center");
+      ksCell(ws, row, 7, r.Kirim, "center");
+      ksNum(ws, row, 8, r.Total, true);
+      ksNum(ws, row, 9, r.Ppn);
+      ksCell(ws, row, 10, r.UserCreate, "center");
+      ksCell(ws, row, 11, r.DateCreate, "center");
+    }
+
+    ksCell(ws, row, 12, r.Kode, "center");
+    ksCell(ws, row, 13, r.Nama, "left");
+    ksCell(ws, row, 14, r.Satuan, "center");
+    ksNum(ws, row, 15, r.Qty);
+    ksNum(ws, row, 16, r.Harga);
+    ksNum(ws, row, 17, r.DiscPr || 0);
+    const nilai =
+      Number(r.Qty || 0) * Number(r.Harga || 0) -
+      (Number(r.Qty || 0) * Number(r.Harga || 0) * Number(r.DiscPr || 0)) / 100;
+    ksNum(ws, row, 18, nilai, true);
+    ksNum(ws, row, 19, r.Terkirim || 0);
+    totalNilai += nilai;
+    row.height = 16;
+    lastNomor = r.Nomor;
+  }
+
+  const foot = ws.addRow([]);
+  for (let c = 1; c <= 19; c++) {
+    foot.getCell(c).border = kartuStokBorder;
+    foot.getCell(c).fill = kartuStokTotalFill;
+  }
+  ksCell(ws, foot, 12, "TOTAL NILAI", "right", true);
+  ksNum(ws, foot, 18, totalNilai, true);
+  foot.height = 18;
+
+  const widths = [18, 12, 26, 22, 14, 9, 9, 16, 14, 12, 16, 12, 26, 10, 10, 14, 9, 16, 10];
+  widths.forEach((w, i) => {
+    ws.getColumn(i + 1).width = w;
+  });
+  ws.views = [{ state: "frozen", ySplit: 3 }];
+
+  const buf = await ws.workbook.xlsx.writeBuffer();
+  const blob = new Blob([buf], {
+    type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  });
+  return await promptSaveAs(blob, `SO_Detail_${periodeName(startDate, endDate)}.xlsx`);
+};
+
+// ── Browse DO — Export & Export Detail ────────────────────────────────
+// Format sama seperti SO/Kartu Stok: Export = header saja (dengan baris
+// TOTAL), Export Detail = header ditulis sekali per nomor + tiap item
+// barang di bawahnya (grouped).
+interface DoHeaderRow {
+  Nomor: string;
+  Tanggal: string;
+  NoSO: string;
+  Customer: string;
+  Gudang: string;
+  ShipAddress: string;
+  Memo: string;
+  Closed: string;
+  Invoice: string;
+  UserCreate: string;
+  DateCreate: string;
+}
+
+export const exportDo = async (
+  rows: DoHeaderRow[],
+  startDate?: string,
+  endDate?: string,
+): Promise<boolean> => {
+  const ws = new ExcelJS.Workbook().addWorksheet("DO");
+
+  ws.mergeCells("A1:K1");
+  ws.getCell("A1").value = `Tanggal  : ${periodeLabel(startDate, endDate)}`;
+  ws.getCell("A1").font = { size: 10, name: "Arial" };
+  ws.addRow([]);
+
+  const cols = [
+    "Nomor",
+    "Tanggal",
+    "No. SO",
+    "Customer",
+    "Gudang",
+    "Ship Address",
+    "Memo",
+    "Closed",
+    "Invoice",
+    "User Create",
+    "Date Create",
+  ];
+  ksHeader(ws, ws.addRow(cols), cols);
+
+  for (const r of rows) {
+    const row = ws.addRow([]);
+    ksCell(ws, row, 1, r.Nomor, "center", true);
+    ksCell(ws, row, 2, ksDate(r.Tanggal), "center");
+    ksCell(ws, row, 3, r.NoSO || "-", "center");
+    ksCell(ws, row, 4, r.Customer, "left");
+    ksCell(ws, row, 5, r.Gudang, "left");
+    ksCell(ws, row, 6, r.ShipAddress || "-", "left");
+    ksCell(ws, row, 7, r.Memo || "-", "left");
+    ksCell(ws, row, 8, r.Closed, "center");
+    ksCell(ws, row, 9, r.Invoice, "center");
+    ksCell(ws, row, 10, r.UserCreate, "center");
+    ksCell(ws, row, 11, r.DateCreate, "center");
+    row.height = 16;
+  }
+
+  const foot = ws.addRow([]);
+  for (let c = 1; c <= 11; c++) {
+    foot.getCell(c).border = kartuStokBorder;
+    foot.getCell(c).fill = kartuStokTotalFill;
+  }
+  ksCell(ws, foot, 4, "TOTAL DO", "right", true);
+  ksNum(ws, foot, 1, rows.length, true);
+  foot.height = 18;
+
+  const widths = [18, 12, 14, 26, 16, 26, 26, 10, 10, 14, 18];
+  widths.forEach((w, i) => {
+    ws.getColumn(i + 1).width = w;
+  });
+
+  const buf = await ws.workbook.xlsx.writeBuffer();
+  const blob = new Blob([buf], {
+    type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  });
+  return await promptSaveAs(blob, `DO_${periodeName(startDate, endDate)}.xlsx`);
+};
+
+interface DoDetailFlatRow {
+  Nomor: string;
+  Tanggal: string;
+  NoSO: string;
+  Customer: string;
+  Gudang: string;
+  ShipAddress: string;
+  Memo: string;
+  Closed: string;
+  Invoice: string;
+  UserCreate: string;
+  DateCreate: string;
+  NoUrut: number;
+  Kode: string | number;
+  Nama: string;
+  Satuan: string;
+  Qty: number;
+  TglExpired: string;
+  QtyInvoice: number;
+  Status: number;
+}
+
+export const exportDoDetail = async (
+  rows: DoDetailFlatRow[],
+  startDate?: string,
+  endDate?: string,
+): Promise<boolean> => {
+  const ws = new ExcelJS.Workbook().addWorksheet("DO Detail");
+
+  ws.mergeCells("A1:S1");
+  ws.getCell("A1").value = `Browse DO — Detail (Periode : ${periodeLabel(startDate, endDate)})`;
+  ws.getCell("A1").font = { size: 10, bold: true, name: "Arial" };
+  ws.addRow([]);
+
+  const cols = [
+    "Nomor",
+    "Tanggal",
+    "No. SO",
+    "Customer",
+    "Gudang",
+    "Ship Address",
+    "Memo",
+    "Closed",
+    "Invoice",
+    "User Create",
+    "Date Create",
+    "No Urut",
+    "Kode Barang",
+    "Nama Barang",
+    "Satuan",
+    "Jumlah",
+    "Expired",
+    "Qty Invoice",
+    "Status",
+  ];
+  ksHeader(ws, ws.addRow(cols), cols);
+
+  let totalQty = 0;
+  let lastNomor: string | null = null;
+  for (const r of rows) {
+    const row = ws.addRow([]);
+    const isRepeat = r.Nomor === lastNomor;
+
+    // Kolom header hanya di baris pertama tiap nomor; baris item ke-2+ kosong
+    if (!isRepeat) {
+      ksCell(ws, row, 1, r.Nomor, "left", true);
+      ksCell(ws, row, 2, ksDate(r.Tanggal), "center");
+      ksCell(ws, row, 3, r.NoSO || "-", "center");
+      ksCell(ws, row, 4, r.Customer, "left");
+      ksCell(ws, row, 5, r.Gudang, "left");
+      ksCell(ws, row, 6, r.ShipAddress || "-", "left");
+      ksCell(ws, row, 7, r.Memo || "-", "left");
+      ksCell(ws, row, 8, r.Closed, "center");
+      ksCell(ws, row, 9, r.Invoice, "center");
+      ksCell(ws, row, 10, r.UserCreate, "center");
+      ksCell(ws, row, 11, r.DateCreate, "center");
+    }
+
+    ksCell(ws, row, 12, r.NoUrut, "center");
+    ksCell(ws, row, 13, r.Kode, "center");
+    ksCell(ws, row, 14, r.Nama, "left");
+    ksCell(ws, row, 15, r.Satuan, "center");
+    ksNum(ws, row, 16, r.Qty);
+    ksCell(ws, row, 17, ksDate(r.TglExpired), "center");
+    ksNum(ws, row, 18, r.QtyInvoice || 0);
+    ksNum(ws, row, 19, r.Status || 0);
+    totalQty += Number(r.Qty || 0);
+    row.height = 16;
+    lastNomor = r.Nomor;
+  }
+
+  const foot = ws.addRow([]);
+  for (let c = 1; c <= 19; c++) {
+    foot.getCell(c).border = kartuStokBorder;
+    foot.getCell(c).fill = kartuStokTotalFill;
+  }
+  ksCell(ws, foot, 13, "TOTAL QTY", "right", true);
+  ksNum(ws, foot, 16, totalQty, true);
+  foot.height = 18;
+
+  const widths = [18, 12, 14, 22, 14, 22, 26, 9, 9, 12, 16, 8, 12, 26, 10, 10, 12, 12, 8];
+  widths.forEach((w, i) => {
+    ws.getColumn(i + 1).width = w;
+  });
+  ws.views = [{ state: "frozen", ySplit: 3 }];
+
+  const buf = await ws.workbook.xlsx.writeBuffer();
+  const blob = new Blob([buf], {
+    type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  });
+  return await promptSaveAs(blob, `DO_Detail_${periodeName(startDate, endDate)}.xlsx`);
+};
+
+// ── Faktur Penjualan (FP) — Export & Export Detail ──────────────────────
+// Pola sama persis dengan exportDo/exportDoDetail di atas: EXPORT untuk
+// master saja, EXPORT DETAIL untuk master + item flatten (1 baris = 1 item).
+interface FpHeaderRow {
+  Nomor: string;
+  Tanggal: string;
+  JthTempo: string;
+  Memo: string;
+  Tax: string;
+  Salesman: string;
+  Kode_Cust: string;
+  Customer: string;
+  Total: number;
+  Ppn: number;
+  Disc_Faktur: number;
+  Biaya_Promosi: number;
+  Kontrak: number;
+  Freight: number;
+  Bayar: number;
+  Status_Bayar: string;
+  Kembali: number;
+  Retur: number;
+  Keterangan: string;
+  status_faktur: string;
+}
+
+export const exportFp = async (
+  rows: FpHeaderRow[],
+  startDate?: string,
+  endDate?: string,
+): Promise<boolean> => {
+  const ws = new ExcelJS.Workbook().addWorksheet("Faktur Penjualan");
+
+  ws.mergeCells("A1:T1");
+  ws.getCell("A1").value = `Tanggal  : ${periodeLabel(startDate, endDate)}`;
+  ws.getCell("A1").font = { size: 10, name: "Arial" };
+  ws.addRow([]);
+
+  const cols = [
+    "Nomor",
+    "Tanggal",
+    "Jth Tempo",
+    "Memo",
+    "Tax",
+    "Salesman",
+    "Kode Cust",
+    "Customer",
+    "Total",
+    "Ppn",
+    "Disc Faktur",
+    "Biaya Promosi",
+    "Kontrak",
+    "Freight",
+    "Bayar",
+    "Status Bayar",
+    "Kembali",
+    "Retur",
+    "Keterangan",
+    "Status Faktur",
+  ];
+  ksHeader(ws, ws.addRow(cols), cols);
+
+  let totalAmount = 0;
+  let totalPpn = 0;
+  let totalBayar = 0;
+  let totalRetur = 0;
+  for (const r of rows) {
+    const row = ws.addRow([]);
+    ksCell(ws, row, 1, r.Nomor, "center", true);
+    ksCell(ws, row, 2, ksDate(r.Tanggal), "center");
+    ksCell(ws, row, 3, ksDate(r.JthTempo), "center");
+    ksCell(ws, row, 4, r.Memo || "-", "left");
+    ksCell(ws, row, 5, r.Tax, "center");
+    ksCell(ws, row, 6, r.Salesman, "center");
+    ksCell(ws, row, 7, r.Kode_Cust, "center");
+    ksCell(ws, row, 8, r.Customer, "left");
+    ksNum(ws, row, 9, r.Total);
+    ksNum(ws, row, 10, r.Ppn);
+    ksNum(ws, row, 11, r.Disc_Faktur || 0);
+    ksNum(ws, row, 12, r.Biaya_Promosi || 0);
+    ksNum(ws, row, 13, r.Kontrak || 0);
+    ksNum(ws, row, 14, r.Freight || 0);
+    ksNum(ws, row, 15, r.Bayar || 0);
+    ksCell(ws, row, 16, r.Status_Bayar, "center");
+    ksNum(ws, row, 17, r.Kembali || 0);
+    ksNum(ws, row, 18, r.Retur || 0);
+    ksCell(ws, row, 19, r.Keterangan || "-", "left");
+    ksCell(ws, row, 20, r.status_faktur, "center");
+    row.height = 16;
+
+    totalAmount += Number(r.Total || 0);
+    totalPpn += Number(r.Ppn || 0);
+    totalBayar += Number(r.Bayar || 0);
+    totalRetur += Number(r.Retur || 0);
+  }
+
+  const foot = ws.addRow([]);
+  for (let c = 1; c <= 20; c++) {
+    foot.getCell(c).border = kartuStokBorder;
+    foot.getCell(c).fill = kartuStokTotalFill;
+  }
+  ksCell(ws, foot, 8, "TOTAL", "right", true);
+  ksNum(ws, foot, 9, totalAmount, true);
+  ksNum(ws, foot, 10, totalPpn, true);
+  ksNum(ws, foot, 15, totalBayar, true);
+  ksNum(ws, foot, 18, totalRetur, true);
+  foot.height = 18;
+
+  const widths = [18, 12, 12, 24, 8, 12, 12, 26, 16, 14, 14, 14, 12, 12, 16, 12, 10, 14, 20, 12];
+  widths.forEach((w, i) => {
+    ws.getColumn(i + 1).width = w;
+  });
+
+  const buf = await ws.workbook.xlsx.writeBuffer();
+  const blob = new Blob([buf], {
+    type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  });
+  return await promptSaveAs(blob, `FakturPenjualan_${periodeName(startDate, endDate)}.xlsx`);
+};
+
+interface FpDetailFlatRow extends FpHeaderRow {
+  NoUrut: number;
+  Kode: string | number;
+  Nama: string;
+  Satuan: string;
+  Qty: number;
+  Harga: number;
+  DiscPr: number;
+  KontrakItem: number;
+}
+
+export const exportFpDetail = async (
+  rows: FpDetailFlatRow[],
+  startDate?: string,
+  endDate?: string,
+): Promise<boolean> => {
+  const ws = new ExcelJS.Workbook().addWorksheet("FP Detail");
+
+  ws.mergeCells("A1:AC1");
+  ws.getCell("A1").value = `Browse Faktur Penjualan — Detail (Periode : ${periodeLabel(startDate, endDate)})`;
+  ws.getCell("A1").font = { size: 10, bold: true, name: "Arial" };
+  ws.addRow([]);
+
+  const cols = [
+    "Nomor",
+    "Tanggal",
+    "Jth Tempo",
+    "Memo",
+    "Tax",
+    "Salesman",
+    "Kode Cust",
+    "Customer",
+    "Total",
+    "Ppn",
+    "Disc Faktur",
+    "Biaya Promosi",
+    "Kontrak",
+    "Freight",
+    "Bayar",
+    "Status Bayar",
+    "Kembali",
+    "Retur",
+    "Keterangan",
+    "Status Faktur",
+    "No Urut",
+    "Kode Barang",
+    "Nama Barang",
+    "Satuan",
+    "Jumlah",
+    "Harga",
+    "Disc %",
+    "Nilai",
+    "Kontrak Item",
+  ];
+  ksHeader(ws, ws.addRow(cols), cols);
+
+  let totalQty = 0;
+  let totalNilai = 0;
+  let totalKontrakItem = 0;
+  let lastNomor: string | null = null;
+  for (const r of rows) {
+    const row = ws.addRow([]);
+    const isRepeat = r.Nomor === lastNomor;
+
+    // Kolom header hanya di baris pertama tiap nomor; baris item ke-2+ kosong
+    // (pola sama dengan exportDoDetail).
+    if (!isRepeat) {
+      ksCell(ws, row, 1, r.Nomor, "left", true);
+      ksCell(ws, row, 2, ksDate(r.Tanggal), "center");
+      ksCell(ws, row, 3, ksDate(r.JthTempo), "center");
+      ksCell(ws, row, 4, r.Memo || "-", "left");
+      ksCell(ws, row, 5, r.Tax, "center");
+      ksCell(ws, row, 6, r.Salesman, "center");
+      ksCell(ws, row, 7, r.Kode_Cust, "center");
+      ksCell(ws, row, 8, r.Customer, "left");
+      ksNum(ws, row, 9, r.Total);
+      ksNum(ws, row, 10, r.Ppn);
+      ksNum(ws, row, 11, r.Disc_Faktur || 0);
+      ksNum(ws, row, 12, r.Biaya_Promosi || 0);
+      ksNum(ws, row, 13, r.Kontrak || 0);
+      ksNum(ws, row, 14, r.Freight || 0);
+      ksNum(ws, row, 15, r.Bayar || 0);
+      ksCell(ws, row, 16, r.Status_Bayar, "center");
+      ksNum(ws, row, 17, r.Kembali || 0);
+      ksNum(ws, row, 18, r.Retur || 0);
+      ksCell(ws, row, 19, r.Keterangan || "-", "left");
+      ksCell(ws, row, 20, r.status_faktur, "center");
+    }
+
+    const nilai = Number(r.Qty || 0) * Number(r.Harga || 0) * (1 - Number(r.DiscPr || 0) / 100);
+    ksCell(ws, row, 21, r.NoUrut, "center");
+    ksCell(ws, row, 22, r.Kode, "center");
+    ksCell(ws, row, 23, r.Nama, "left");
+    ksCell(ws, row, 24, r.Satuan, "center");
+    ksNum(ws, row, 25, r.Qty);
+    ksNum(ws, row, 26, r.Harga);
+    ksNum(ws, row, 27, r.DiscPr || 0);
+    ksNum(ws, row, 28, nilai);
+    ksNum(ws, row, 29, r.KontrakItem || 0);
+    row.height = 16;
+
+    totalQty += Number(r.Qty || 0);
+    totalNilai += nilai;
+    totalKontrakItem += Number(r.KontrakItem || 0);
+    lastNomor = r.Nomor;
+  }
+
+  const foot = ws.addRow([]);
+  for (let c = 1; c <= 29; c++) {
+    foot.getCell(c).border = kartuStokBorder;
+    foot.getCell(c).fill = kartuStokTotalFill;
+  }
+  ksCell(ws, foot, 23, "TOTAL", "right", true);
+  ksNum(ws, foot, 25, totalQty, true);
+  ksNum(ws, foot, 28, totalNilai, true);
+  ksNum(ws, foot, 29, totalKontrakItem, true);
+  foot.height = 18;
+
+  const widths = [
+    18, 12, 12, 20, 8, 12, 12, 22, 16, 14, 12, 12, 10, 10, 14, 12, 10, 12, 18, 12,
+    8, 12, 24, 10, 10, 12, 8, 14, 12,
+  ];
+  widths.forEach((w, i) => {
+    ws.getColumn(i + 1).width = w;
+  });
+  ws.views = [{ state: "frozen", ySplit: 3 }];
+
+  const buf = await ws.workbook.xlsx.writeBuffer();
+  const blob = new Blob([buf], {
+    type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  });
+  return await promptSaveAs(blob, `FakturPenjualan_Detail_${periodeName(startDate, endDate)}.xlsx`);
+};
+
+// ── Faktur Pajak (tfakturpajak_hdr) — browse master & detail ─────────────
+interface FakturPajakHeaderRow {
+  Nomor: string;
+  Tanggal: string;
+  Memo: string;
+  Salesman: string;
+  Kode_Cust: string;
+  Customer: string;
+  Total: number;
+  Ppn: number;
+  Disc_Faktur: number;
+  FakturPajak: string;
+  TglPajak: string;
+  IsManual: number;
+  DateCreate: string;
+}
+
+export const exportFakturPajak = async (
+  rows: FakturPajakHeaderRow[],
+  startDate?: string,
+  endDate?: string,
+): Promise<boolean> => {
+  const ws = new ExcelJS.Workbook().addWorksheet("Faktur Pajak");
+
+  ws.mergeCells("A1:M1");
+  ws.getCell("A1").value = `Tanggal  : ${periodeLabel(startDate, endDate)}`;
+  ws.getCell("A1").font = { size: 10, name: "Arial" };
+  ws.addRow([]);
+
+  const cols = [
+    "Nomor",
+    "Tanggal",
+    "Memo",
+    "Salesman",
+    "Kode Cust",
+    "Customer",
+    "Total",
+    "Ppn",
+    "Disc Faktur",
+    "Nomor Seri",
+    "Tgl Pajak",
+    "Manual",
+    "Date Create",
+  ];
+  ksHeader(ws, ws.addRow(cols), cols);
+
+  let totalAmount = 0;
+  let totalPpn = 0;
+  for (const r of rows) {
+    const row = ws.addRow([]);
+    ksCell(ws, row, 1, r.Nomor, "center", true);
+    ksCell(ws, row, 2, ksDate(r.Tanggal), "center");
+    ksCell(ws, row, 3, r.Memo || "-", "left");
+    ksCell(ws, row, 4, r.Salesman, "center");
+    ksCell(ws, row, 5, r.Kode_Cust, "center");
+    ksCell(ws, row, 6, r.Customer, "left");
+    ksNum(ws, row, 7, r.Total);
+    ksNum(ws, row, 8, r.Ppn);
+    ksNum(ws, row, 9, r.Disc_Faktur || 0);
+    ksCell(ws, row, 10, r.FakturPajak || "-", "center");
+    ksCell(ws, row, 11, ksDate(r.TglPajak), "center");
+    ksCell(ws, row, 12, Number(r.IsManual) > 0 ? "Ya" : "-", "center");
+    ksCell(ws, row, 13, r.DateCreate || "-", "center");
+    row.height = 16;
+
+    totalAmount += Number(r.Total || 0);
+    totalPpn += Number(r.Ppn || 0);
+  }
+
+  const foot = ws.addRow([]);
+  for (let c = 1; c <= 13; c++) {
+    foot.getCell(c).border = kartuStokBorder;
+    foot.getCell(c).fill = kartuStokTotalFill;
+  }
+  ksCell(ws, foot, 6, "TOTAL", "right", true);
+  ksNum(ws, foot, 7, totalAmount, true);
+  ksNum(ws, foot, 8, totalPpn, true);
+  foot.height = 18;
+
+  const widths = [18, 12, 24, 12, 12, 26, 16, 14, 14, 16, 12, 8, 18];
+  widths.forEach((w, i) => {
+    ws.getColumn(i + 1).width = w;
+  });
+
+  const buf = await ws.workbook.xlsx.writeBuffer();
+  const blob = new Blob([buf], {
+    type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  });
+  return await promptSaveAs(blob, `FakturPajak_${periodeName(startDate, endDate)}.xlsx`);
+};
+
+interface FakturPajakDetailFlatRow extends FakturPajakHeaderRow {
+  NoUrut: number;
+  Kode: string | number;
+  Nama: string;
+  Satuan: string;
+  Qty: number;
+  Harga: number;
+  DiscPr: number;
+  Expired: string;
+  Cnp: number;
+}
+
+export const exportFakturPajakDetail = async (
+  rows: FakturPajakDetailFlatRow[],
+  startDate?: string,
+  endDate?: string,
+): Promise<boolean> => {
+  const ws = new ExcelJS.Workbook().addWorksheet("FPajak Detail");
+
+  ws.mergeCells("A1:W1");
+  ws.getCell("A1").value = `Browse Faktur Pajak — Detail (Periode : ${periodeLabel(startDate, endDate)})`;
+  ws.getCell("A1").font = { size: 10, bold: true, name: "Arial" };
+  ws.addRow([]);
+
+  const cols = [
+    "Nomor",
+    "Tanggal",
+    "Memo",
+    "Salesman",
+    "Kode Cust",
+    "Customer",
+    "Total",
+    "Ppn",
+    "Disc Faktur",
+    "Nomor Seri",
+    "Tgl Pajak",
+    "Manual",
+    "Date Create",
+    "No Urut",
+    "Kode Barang",
+    "Nama Barang",
+    "Satuan",
+    "Jumlah",
+    "Harga",
+    "Disc %",
+    "Nilai",
+    "Expired",
+    "Nilai CN",
+  ];
+  ksHeader(ws, ws.addRow(cols), cols);
+
+  let totalQty = 0;
+  let totalNilai = 0;
+  let totalCnp = 0;
+  let lastNomor: string | null = null;
+  for (const r of rows) {
+    const row = ws.addRow([]);
+    const isRepeat = r.Nomor === lastNomor;
+
+    // Kolom header hanya di baris pertama tiap nomor; baris item ke-2+ kosong
+    // (pola sama dengan exportDoDetail / exportFpDetail).
+    if (!isRepeat) {
+      ksCell(ws, row, 1, r.Nomor, "left", true);
+      ksCell(ws, row, 2, ksDate(r.Tanggal), "center");
+      ksCell(ws, row, 3, r.Memo || "-", "left");
+      ksCell(ws, row, 4, r.Salesman, "center");
+      ksCell(ws, row, 5, r.Kode_Cust, "center");
+      ksCell(ws, row, 6, r.Customer, "left");
+      ksNum(ws, row, 7, r.Total);
+      ksNum(ws, row, 8, r.Ppn);
+      ksNum(ws, row, 9, r.Disc_Faktur || 0);
+      ksCell(ws, row, 10, r.FakturPajak || "-", "center");
+      ksCell(ws, row, 11, ksDate(r.TglPajak), "center");
+      ksCell(ws, row, 12, Number(r.IsManual) > 0 ? "Ya" : "-", "center");
+      ksCell(ws, row, 13, r.DateCreate || "-", "center");
+    }
+
+    const nilai = Number(r.Qty || 0) * Number(r.Harga || 0) * (1 - Number(r.DiscPr || 0) / 100);
+    ksCell(ws, row, 14, r.NoUrut, "center");
+    ksCell(ws, row, 15, r.Kode, "center");
+    ksCell(ws, row, 16, r.Nama, "left");
+    ksCell(ws, row, 17, r.Satuan, "center");
+    ksNum(ws, row, 18, r.Qty);
+    ksNum(ws, row, 19, r.Harga);
+    ksNum(ws, row, 20, r.DiscPr || 0);
+    ksNum(ws, row, 21, nilai);
+    ksCell(ws, row, 22, ksDate(r.Expired), "center");
+    ksNum(ws, row, 23, r.Cnp || 0);
+    row.height = 16;
+
+    totalQty += Number(r.Qty || 0);
+    totalNilai += nilai;
+    totalCnp += Number(r.Cnp || 0);
+    lastNomor = r.Nomor;
+  }
+
+  const foot = ws.addRow([]);
+  for (let c = 1; c <= 23; c++) {
+    foot.getCell(c).border = kartuStokBorder;
+    foot.getCell(c).fill = kartuStokTotalFill;
+  }
+  ksCell(ws, foot, 16, "TOTAL", "right", true);
+  ksNum(ws, foot, 18, totalQty, true);
+  ksNum(ws, foot, 21, totalNilai, true);
+  ksNum(ws, foot, 23, totalCnp, true);
+  foot.height = 18;
+
+  const widths = [
+    18, 12, 20, 12, 12, 22, 16, 14, 12, 16, 12, 8, 18,
+    8, 10, 30, 10, 10, 12, 8, 14, 12, 12,
+  ];
+  widths.forEach((w, i) => {
+    ws.getColumn(i + 1).width = w;
+  });
+  ws.views = [{ state: "frozen", ySplit: 3 }];
+
+  const buf = await ws.workbook.xlsx.writeBuffer();
+  const blob = new Blob([buf], {
+    type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  });
+  return await promptSaveAs(blob, `FakturPajak_Detail_${periodeName(startDate, endDate)}.xlsx`);
+};
+
+// ── Rekap Permintaan Bahan (dipakai RekapPermintaanBahanView.vue) ──
+export const exportRekapPermintaanBahan = async (items: any[]): Promise<boolean> => {
+  // Estimasi Cukup = stok ÷ laju pemakaian produksi (dijelaskan di kolom
+  // keterangan pada layar). Dibuat sebagai teks "x bln (~y hari)".
+  const rows = items.map((r) => {
+    const bulan = r.estimasiBulan;
+    const estimasi =
+      bulan === null || bulan === undefined
+        ? "—"
+        : `${Number(bulan).toLocaleString("id-ID", { maximumFractionDigits: 1 })} bln (~${r.estimasiHari} hari)`;
+    return { ...r, estimasi };
+  });
+
+  await exportToExcel({
+    title: "Rekap Permintaan Bahan",
+    filenamePrefix: "RekapPermintaanBahan",
+    sheetName: "Rekap Permintaan Bahan",
+    columns: [
+      { header: "Kategori", key: "kategori", width: 18 },
+      { header: "Kode", key: "kode", width: 10, align: "center" },
+      { header: "Nama Bahan", key: "nama", width: 32 },
+      { header: "Satuan", key: "satuan", width: 9, align: "center" },
+      { header: "Supplier", key: "supplier", width: 24 },
+      { header: "Permintaan (SO)", key: "kebutuhan", width: 14, align: "right" },
+      { header: "Stok", key: "stok", width: 12, align: "right" },
+      { header: "Pakai Produksi /Bln", key: "pakaiBln", width: 16, align: "right" },
+      { header: "Estimasi Cukup", key: "estimasi", width: 18, align: "center" },
+      { header: "Status", key: "status", width: 14, align: "center" },
+      { header: "Sisa", key: "sisa", width: 12, align: "right" },
+      { header: "PO Pending", key: "poPending", width: 12, align: "right" },
+      { header: "Usulan Order", key: "order", width: 12, align: "right" },
+      { header: "Avg Out /Bln", key: "avgOut", width: 12, align: "right" },
+    ],
+    rows,
+  });
+  return true;
+};
+
+// ── Dashboard Estimasi Stok Bahan Produksi (dipakai DashboardEstimasiBahan.vue) ──
+export const exportEstimasiBahan = async (items: any[]): Promise<boolean> => {
+  const rows = items.map((r) => {
+    const bulan = r.estimasiBulan;
+    const estimasi =
+      bulan === null || bulan === undefined
+        ? "—"
+        : `${Number(bulan).toLocaleString("id-ID", { maximumFractionDigits: 1 })} bln (~${r.estimasiHari} hari)`;
+    const saldo = Number(r.saldo);
+    return { ...r, estimasi, saldoTeks: saldo < 0 ? saldo.toLocaleString("id-ID") : r.saldo };
+  });
+
+  await exportToExcel({
+    title: "Estimasi Stok Bahan Produksi",
+    filenamePrefix: "EstimasiStokProduksi",
+    sheetName: "Estimasi Stok Produksi",
+    columns: [
+      { header: "Kode", key: "kode", width: 10, align: "center" },
+      { header: "Nama Bahan", key: "nama", width: 36 },
+      { header: "Kategori", key: "kategori", width: 16 },
+      { header: "Hbeli", key: "hrgBeli", width: 12, align: "right" },
+      { header: "Awal", key: "awal", width: 10, align: "right" },
+      { header: "Masuk", key: "masuk", width: 10, align: "right" },
+      { header: "Keluar", key: "keluar", width: 10, align: "right" },
+      { header: "Saldo", key: "saldo", width: 12, align: "right" },
+      { header: "Saldo GD-01", key: "saldoProduksi", width: 12, align: "right" },
+      { header: "Pakai /Bln", key: "pakaiBln", width: 14, align: "right" },
+      { header: "Estimasi Cukup", key: "estimasi", width: 18, align: "center" },
+      { header: "Status", key: "status", width: 14, align: "center" },
+    ],
+    rows,
+  });
+  return true;
+};
+
+// ── Laporan Produksi Operator (dipakai LaporanProduksiView.vue) ──
+export const exportLaporanProduksi = async (
+  rows: Array<{
+    tanggal: string;
+    lhkNomor: string;
+    spkNomor: string;
+    brgKode: string;
+    produk: string;
+    satuan: string;
+    nik: string;
+    nama: string;
+    memo: string;
+    dept: string;
+    unit: string;
+    mesin: string;
+    qty: number;
+  }>,
+  periodeLabel: string,
+): Promise<boolean> => {
+  await exportToExcel({
+    title: `Laporan Produksi Operator - ${periodeLabel}`,
+    filenamePrefix: "LaporanProduksiOperator",
+    sheetName: "Produksi Operator",
+    columns: [
+      { header: "Tanggal", key: "tanggal", width: 12, align: "center" },
+      { header: "No. LHK", key: "lhkNomor", width: 18 },
+      { header: "No. SPK", key: "spkNomor", width: 18 },
+      { header: "Kode", key: "brgKode", width: 12 },
+      { header: "Produk", key: "produk", width: 32 },
+      { header: "Satuan", key: "satuan", width: 10, align: "center" },
+      { header: "Operator", key: "nama", width: 22 },
+      { header: "NIK", key: "nik", width: 14, align: "center" },
+      { header: "Memo", key: "memo", width: 24 },
+      { header: "Departemen", key: "dept", width: 16 },
+      { header: "Unit", key: "unit", width: 24 },
+      { header: "Mesin", key: "mesin", width: 14 },
+      { header: "Qty", key: "qty", width: 12, align: "right" },
+    ],
+    rows,
+  });
+  return true;
+};
+
+// ── Browse SPK — Export Detail (1 baris = 1 tahap tspk_dtl) ────────────
+interface SpkDetailFlatRow {
+  Nomor: string;
+  Nama: string;
+  Tanggal: string;
+  DateLine: string;
+  KodeBarang: string;
+  Barang: string;
+  Customer: string;
+  IdBatch: string;
+  Target: number;
+  Jadi: number;
+  Status: string;
+  Urutan: number;
+  Tahap: string;
+  TargetTahap: number;
+  Selesai: number;
+  Finalisasi: string;
+}
+
+export const exportSpkDetail = async (
+  rows: SpkDetailFlatRow[],
+  startDate?: string,
+  endDate?: string,
+): Promise<boolean> => {
+  const ws = new ExcelJS.Workbook().addWorksheet("SPK Detail");
+
+  ws.mergeCells("A1:P1");
+  ws.getCell("A1").value = `Browse SPK — Detail (Periode : ${periodeLabel(startDate, endDate)})`;
+  ws.getCell("A1").font = { size: 10, bold: true, name: "Arial" };
+  ws.addRow([]);
+
+  const cols = [
+    "Nomor",
+    "Nama SPK",
+    "Tanggal",
+    "Dateline",
+    "Kode",
+    "Barang",
+    "Customer",
+    "Id Batch",
+    "Target",
+    "Jadi",
+    "Status",
+    "Urutan",
+    "Tahap",
+    "Target Tahap",
+    "Selesai",
+    "Finalisasi",
+  ];
+  ksHeader(ws, ws.addRow(cols), cols);
+
+  let totalTarget = 0;
+  let totalJadi = 0;
+  let lastNomor: string | null = null;
+  for (const r of rows) {
+    const row = ws.addRow([]);
+    const isRepeat = r.Nomor === lastNomor;
+
+    if (!isRepeat) {
+      ksCell(ws, row, 1, r.Nomor, "left", true);
+      ksCell(ws, row, 2, r.Nama, "left");
+      ksCell(ws, row, 3, ksDate(r.Tanggal), "center");
+      ksCell(ws, row, 4, ksDate(r.DateLine), "center");
+      ksCell(ws, row, 5, r.KodeBarang, "center");
+      ksCell(ws, row, 6, r.Barang, "left");
+      ksCell(ws, row, 7, r.Customer || "-", "left");
+      ksCell(ws, row, 8, r.IdBatch, "center");
+      ksNum(ws, row, 9, r.Target);
+      ksNum(ws, row, 10, r.Jadi);
+      ksCell(ws, row, 11, r.Status, "center");
+      totalTarget += Number(r.Target || 0);
+      totalJadi += Number(r.Jadi || 0);
+    }
+
+    ksNum(ws, row, 12, r.Urutan);
+    ksCell(ws, row, 13, r.Tahap, "left");
+    ksNum(ws, row, 14, r.TargetTahap);
+    ksNum(ws, row, 15, r.Selesai);
+    ksCell(ws, row, 16, r.Finalisasi, "center");
+    row.height = 16;
+    lastNomor = r.Nomor;
+  }
+
+  const foot = ws.addRow([]);
+  for (let c = 1; c <= 16; c++) {
+    foot.getCell(c).border = kartuStokBorder;
+    foot.getCell(c).fill = kartuStokTotalFill;
+  }
+  ksCell(ws, foot, 8, "TOTAL", "right", true);
+  ksNum(ws, foot, 9, totalTarget, true);
+  ksNum(ws, foot, 10, totalJadi, true);
+  foot.height = 18;
+
+  const widths = [18, 26, 12, 12, 10, 26, 20, 14, 10, 10, 10, 8, 18, 11, 11, 10];
+  widths.forEach((w, i) => {
+    ws.getColumn(i + 1).width = w;
+  });
+  ws.views = [{ state: "frozen", ySplit: 3 }];
+
+  const buf = await ws.workbook.xlsx.writeBuffer();
+  const blob = new Blob([buf], {
+    type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  });
+  return await promptSaveAs(blob, `SPK_Detail_${periodeName(startDate, endDate)}.xlsx`);
+};
+
+// ── Browse LHK — Export (master saja) ──────────────────────────────────
+export const exportLhk = async (
+  rows: Array<{
+    Nomor: string;
+    Tanggal: string;
+    Periode: string;
+    SpkNomor: string;
+    SpkNama: string;
+    KodeBarang: string;
+    Barang: string;
+    Satuan?: string;
+    Tahap: string;
+    Urutan?: number;
+    TahapView?: string;
+    MasterProses?: string;
+    Jumlah: number;
+    BS?: number;
+    TotalJumlah?: number;
+    StokDiproses: string;
+    IsFinalisasi?: number;
+    UserCreate?: string;
+    UserModified?: string;
+    DateCreate?: string;
+    DateModified?: string;
+  }>,
+  startDate?: string,
+  endDate?: string,
+): Promise<boolean> => {
+  await exportToExcel({
+    title: `Laporan Harian Kerja (LHK) — Detail (Periode : ${periodeLabel(startDate, endDate)})`,
+    filenamePrefix: "LHK",
+    sheetName: "LHK",
+    columns: [
+      { header: "Nomor", key: "Nomor", width: 18 },
+      { header: "Tanggal", key: "Tanggal", width: 12, align: "center" },
+      { header: "Periode", key: "Periode", width: 12, align: "center" },
+      { header: "No. SPK", key: "SpkNomor", width: 16 },
+      { header: "Nama SPK", key: "SpkNama", width: 26 },
+      { header: "Kode", key: "KodeBarang", width: 10, align: "center" },
+      { header: "Barang", key: "Barang", width: 28 },
+      { header: "Satuan", key: "Satuan", width: 10, align: "center" },
+      // ⬅️ BARU (2026-10-13): Master Proses + Tahap bernomor urut, mengikuti
+      // grid browse. Kolom "Tahap" (nama saja) + "Urutan" digabung jadi satu
+      // kolom "Tahap" berisi "2. Coding + Packing Sekunder" supaya urutan
+      // tahap langsung terbaca.
+      { header: "Master Proses", key: "MasterProses", width: 18 },
+      { header: "Tahap", key: "TahapView", width: 26 },
+      { header: "Jumlah", key: "Jumlah", width: 12, align: "right" },
+      { header: "BS", key: "BS", width: 8, align: "right" },
+      {
+        header: "Finalisasi",
+        key: "__final",
+        width: 12,
+        align: "center",
+        map: (r: any) => (Number(r.IsFinalisasi) === 1 ? "Sudah" : "-"),
+      },
+      {
+        header: "User",
+        key: "__user",
+        width: 22,
+        map: (r: any) => userCellText(r),
+      },
+    ],
+    rows,
+  });
+  return true;
+};
+
+// ── Browse LHK — Export Detail (1 baris = 1 operator/mesin tlhk_dtl) ───
+interface LhkDetailFlatRow {
+  Nomor: string;
+  Tanggal: string;
+  Periode: string;
+  SpkNomor: string;
+  SpkNama: string;
+  KodeBarang: string;
+  Barang: string;
+  Tahap: string;
+  Urutan?: number;
+  Jumlah: number;
+  Keterangan: string;
+  StokDiproses: string;
+  Mesin: string;
+  Operator: string;
+  OperatorNik?: string;
+  OperatorDept?: string;
+  OperatorUnit?: string;
+  JumlahLaporkan: number;
+}
+
+export const exportLhkDetail = async (
+  rows: LhkDetailFlatRow[],
+  startDate?: string,
+  endDate?: string,
+): Promise<boolean> => {
+  const ws = new ExcelJS.Workbook().addWorksheet("LHK Detail");
+
+  // 18 kolom (kolom Jabatan dihapus 2026-10-10 -> merge jadi A1:S1)
+  ws.mergeCells("A1:S1");
+  ws.getCell("A1").value = `Browse LHK — Detail (Periode : ${periodeLabel(startDate, endDate)})`;
+  ws.getCell("A1").font = { size: 10, bold: true, name: "Arial" };
+  ws.addRow([]);
+
+  const cols = [
+    "Nomor",
+    "Tanggal",
+    "Periode",
+    "No. SPK",
+    "Nama SPK",
+    "Kode",
+    "Barang",
+    "Tahap",
+    "Urutan",
+    "Jumlah",
+    "Keterangan",
+    "Finalisasi",
+    "Mesin",
+    "Operator",
+    "NIK",
+    "Departemen",
+    "Unit",
+    "Jumlah Laporkan",
+  ];
+  ksHeader(ws, ws.addRow(cols), cols);
+
+  let totalLaporkan = 0;
+  let lastNomor: string | null = null;
+  for (const r of rows) {
+    const row = ws.addRow([]);
+    const isRepeat = r.Nomor === lastNomor;
+
+    if (!isRepeat) {
+      ksCell(ws, row, 1, r.Nomor, "left", true);
+      ksCell(ws, row, 2, ksDate(r.Tanggal), "center");
+      ksCell(ws, row, 3, r.Periode, "center");
+      ksCell(ws, row, 4, r.SpkNomor, "left");
+      ksCell(ws, row, 5, r.SpkNama || "-", "left");
+      ksCell(ws, row, 6, r.KodeBarang, "center");
+      ksCell(ws, row, 7, r.Barang, "left");
+      ksCell(ws, row, 8, r.Tahap, "left");
+      ksNum(ws, row, 9, Number(r.Urutan || 0));
+      ksNum(ws, row, 10, r.Jumlah);
+      ksCell(ws, row, 11, r.Keterangan || "", "left");
+      ksCell(ws, row, 12, r.StokDiproses, "center");
+    }
+
+    ksCell(ws, row, 13, r.Mesin || "-", "center");
+    ksCell(ws, row, 14, r.Operator, "left");
+    ksCell(ws, row, 15, r.OperatorNik || "-", "center");
+    ksCell(ws, row, 16, r.OperatorDept || "-", "left");
+    ksCell(ws, row, 17, r.OperatorUnit || "-", "left");
+    ksNum(ws, row, 18, r.JumlahLaporkan);
+    totalLaporkan += Number(r.JumlahLaporkan || 0);
+    row.height = 16;
+    lastNomor = r.Nomor;
+  }
+
+  const foot = ws.addRow([]);
+  for (let c = 1; c <= 18; c++) {
+    foot.getCell(c).border = kartuStokBorder;
+    foot.getCell(c).fill = kartuStokTotalFill;
+  }
+  ksCell(ws, foot, 13, "TOTAL LAPORAN", "right", true);
+  ksNum(ws, foot, 18, totalLaporkan, true);
+  foot.height = 18;
+
+  // 18 kolom (Jabatan dihapus). Lebar ikut digeser: kolom 16 sekarang
+  // Departemen, 17 Unit, 18 Jumlah Laporkan.
+  const widths = [18, 12, 12, 14, 26, 10, 26, 16, 8, 11, 20, 11, 12, 20, 12, 14, 20, 13];
+  widths.forEach((w, i) => {
+    ws.getColumn(i + 1).width = w;
+  });
+  ws.views = [{ state: "frozen", ySplit: 3 }];
+
+  const buf = await ws.workbook.xlsx.writeBuffer();
+  const blob = new Blob([buf], {
+    type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  });
+  return await promptSaveAs(blob, `LHK_Detail_${periodeName(startDate, endDate)}.xlsx`);
+};
+
+// ── Browse LHK — Export Selection (1 baris = 1 operator/mesin, DIFILTER memo) ──
+// Sama seperti Export Detail, tapi hanya baris rincian yang memo-nya dipilih
+// user (mis. "Operator Produksi" / "Borongan Masker & Gloves"). Kolom MEMO
+// ikut ditampilkan supaya hasil rekapan per memo langsung terbaca.
+interface LhkSelectionFlatRow {
+  Nomor: string;
+  Tanggal: string;
+  Periode: string;
+  SpkNomor: string;
+  SpkNama: string;
+  KodeBarang: string;
+  Barang: string;
+  Tahap: string;
+  Urutan?: number;
+  Jumlah: number;
+  Memo: string;
+  Keterangan: string;
+  StokDiproses: string;
+  Mesin: string;
+  Operator: string;
+  OperatorNik?: string;
+  OperatorDept?: string;
+  OperatorUnit?: string;
+  JumlahLaporkan: number;
+}
+
+export const exportLhkSelection = async (
+  rows: LhkSelectionFlatRow[],
+  startDate?: string,
+  endDate?: string,
+  memoLabel?: string,
+): Promise<boolean> => {
+  const ws = new ExcelJS.Workbook().addWorksheet("LHK Selection");
+
+  // 19 kolom (A..S) — beda dari Export Detail: ada kolom MEMO yang dicetak
+  // PER BARIS operator (karena satu LHK bisa punya >1 memo).
+  ws.mergeCells("A1:S1");
+  ws.getCell("A1").value = `Browse LHK — Selection Memo : ${
+    memoLabel || "Semua"
+  } (Periode : ${periodeLabel(startDate, endDate)})`;
+  ws.getCell("A1").font = { size: 10, bold: true, name: "Arial" };
+  ws.addRow([]);
+
+  const cols = [
+    "Nomor",
+    "Tanggal",
+    "Periode",
+    "No. SPK",
+    "Nama SPK",
+    "Kode",
+    "Barang",
+    "Tahap",
+    "Urutan",
+    "Jumlah",
+    "Keterangan",
+    "Finalisasi",
+    "Memo",
+    "Mesin",
+    "Operator",
+    "NIK",
+    "Departemen",
+    "Unit",
+    "Jumlah Laporkan",
+  ];
+  ksHeader(ws, ws.addRow(cols), cols);
+
+  let totalLaporkan = 0;
+  let lastNomor: string | null = null;
+  for (const r of rows) {
+    const row = ws.addRow([]);
+    // Info LHK (header) ditulis sekali per nomor LHK — baris sudah diurutkan
+    // per SPK lalu per nomor LHK di frontend. Memo TIDAK di sini karena satu
+    // LHK bisa punya lebih dari satu memo.
+    const isRepeat = r.Nomor === lastNomor;
+
+    if (!isRepeat) {
+      ksCell(ws, row, 1, r.Nomor, "left", true);
+      ksCell(ws, row, 2, ksDate(r.Tanggal), "center");
+      ksCell(ws, row, 3, r.Periode, "center");
+      ksCell(ws, row, 4, r.SpkNomor, "left");
+      ksCell(ws, row, 5, r.SpkNama || "-", "left");
+      ksCell(ws, row, 6, r.KodeBarang, "center");
+      ksCell(ws, row, 7, r.Barang, "left");
+      ksCell(ws, row, 8, r.Tahap, "left");
+      ksNum(ws, row, 9, Number(r.Urutan || 0));
+      ksNum(ws, row, 10, r.Jumlah);
+      ksCell(ws, row, 11, r.Keterangan || "", "left");
+      ksCell(ws, row, 12, r.StokDiproses, "center");
+    }
+
+    // Bagian rincian operator — selalu ditulis (termasuk Memo per baris).
+    ksCell(ws, row, 13, r.Memo || "-", "left");
+    ksCell(ws, row, 14, r.Mesin || "-", "center");
+    ksCell(ws, row, 15, r.Operator, "left");
+    ksCell(ws, row, 16, r.OperatorNik || "-", "center");
+    ksCell(ws, row, 17, r.OperatorDept || "-", "left");
+    ksCell(ws, row, 18, r.OperatorUnit || "-", "left");
+    ksNum(ws, row, 19, r.JumlahLaporkan);
+    totalLaporkan += Number(r.JumlahLaporkan || 0);
+    row.height = 16;
+    lastNomor = r.Nomor;
+  }
+
+  const foot = ws.addRow([]);
+  for (let c = 1; c <= 19; c++) {
+    foot.getCell(c).border = kartuStokBorder;
+    foot.getCell(c).fill = kartuStokTotalFill;
+  }
+  ksCell(ws, foot, 18, "TOTAL LAPORAN", "right", true);
+  ksNum(ws, foot, 19, totalLaporkan, true);
+  foot.height = 18;
+
+  const widths = [18, 12, 12, 14, 26, 10, 26, 16, 8, 11, 20, 11, 24, 12, 20, 12, 14, 20, 13];
+  widths.forEach((w, i) => {
+    ws.getColumn(i + 1).width = w;
+  });
+  ws.views = [{ state: "frozen", ySplit: 3 }];
+
+  const buf = await ws.workbook.xlsx.writeBuffer();
+  const blob = new Blob([buf], {
+    type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  });
+  return await promptSaveAs(blob, `LHK_Selection_${periodeName(startDate, endDate)}.xlsx`);
 };
