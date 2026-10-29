@@ -64,7 +64,7 @@ const router = createRouter({
         layout: "DefaultLayout",
         requiresAuth: true,
         menuId: "95",
-        title: "Master Proses",
+        title: "Master Cabang",
       },
     },
     {
@@ -874,6 +874,16 @@ const router = createRouter({
         layout: "DefaultLayout",
         requiresAuth: true,
         title: "Daftar Hutang",
+      },
+    },
+    {
+      path: "/laporan/hutang",
+      name: "LapHutang",
+      component: () => import("@/views/laporan/LaporanHutangView.vue"),
+      meta: {
+        layout: "DefaultLayout",
+        requiresAuth: true,
+        title: "Laporan Hutang",
       },
     },
     {

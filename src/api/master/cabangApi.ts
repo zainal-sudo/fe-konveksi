@@ -6,6 +6,9 @@ export interface Cabang {
   alamat: string;
   kota: string;
   rekPersediaan?: string | null;
+  rekKas?: string | null;
+  rekPenjualan?: string | null;
+  rekPiutang?: string | null;
 }
 
 export const cabangApi = {
@@ -20,6 +23,9 @@ export const cabangApi = {
     alamat: string;
     kota: string;
     rekPersediaan?: string | null;
+    rekKas?: string | null;
+    rekPenjualan?: string | null;
+    rekPiutang?: string | null;
   }) => {
     const { data } = await api.post("/master/cabang/save", payload);
     return data;

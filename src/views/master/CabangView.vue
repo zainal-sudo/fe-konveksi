@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted } from "vue";
+import { ref, computed, onMounted } from "vue";
 import { useToast } from "vue-toastification";
 import { IconBuildingStore, IconDownload } from "@tabler/icons-vue";
 import BaseBrowse from "@/components/BaseBrowse.vue";
@@ -54,15 +54,24 @@ const dialog = ref(false);
 const dialogTitle = ref("");
 const isSaving = ref(false);
 
-const emptyForm = () => ({ isEdit: false, kode: "", nama: "", alamat: "", kota: "", rekPersediaan: null as string | null });
+const emptyForm = () => ({
+  isEdit: false, kode: "", nama: "", alamat: "", kota: "",
+  rekPersediaan: null as string | null,
+  rekKas: null as string | null,
+  rekPenjualan: null as string | null,
+  rekPiutang: null as string | null,
+});
 const form = ref(emptyForm());
 
-// ── Opsi akun persediaan (trekening grup 17.x) ────────────────────────
+// ── Opsi akun per kategori (trekening) ────────────────────────────────
 const rekeningOptions = ref<Rekening[]>([]);
+const rekPersediaanOptions = computed(() => rekeningOptions.value.filter((r) => r.kode?.startsWith("17.")));
+const rekKasOptions = computed(() => rekeningOptions.value.filter((r) => r.kode?.startsWith("11.")));
+const rekPenjualanOptions = computed(() => rekeningOptions.value.filter((r) => r.kode?.startsWith("21.")));
+const rekPiutangOptions = computed(() => rekeningOptions.value.filter((r) => r.kode?.startsWith("14.")));
 onMounted(async () => {
   try {
-    const all = await rekeningApi.getAll();
-    rekeningOptions.value = all.filter((r) => r.kode?.startsWith("17."));
+    rekeningOptions.value = await rekeningApi.getAll();
   } catch {
     /* dropdown kosong saja; master tetap bisa disimpan */
   }
@@ -95,6 +104,9 @@ const openEdit = (item: Cabang) => {
     alamat: item.alamat,
     kota: item.kota,
     rekPersediaan: item.rekPersediaan || null,
+    rekKas: item.rekKas || null,
+    rekPenjualan: item.rekPenjualan || null,
+    rekPiutang: item.rekPiutang || null,
   };
   errors.value = {};
   dialogTitle.value = "Ubah Cabang";
@@ -222,7 +234,7 @@ const handleDelete = async (item: Cabang) => {
             <label class="f-lbl">Akun Persediaan</label>
             <v-select
               v-model="form.rekPersediaan"
-              :items="rekeningOptions"
+              :items="rekPersediaanOptions"
               item-title="nama"
               item-value="kode"
               density="compact"
@@ -239,6 +251,82 @@ const handleDelete = async (item: Cabang) => {
                 <span class="text-caption">{{ item.raw.kode }} - {{ item.raw.nama }}</span>
               </template>
             </v-select>
+          </div>
+
+          <div class="f-row">
+            <label class="f-lbl">Akun Kas</label>
+            <v-select
+              v-model="form.rekKas"
+              :items="rekKasOptions"
+              item-title="nama"
+              item-value="kode"
+              density="compact"
+              variant="outlined"
+              hide-details
+              clearable
+              :disabled="isSaving"
+              placeholder="Pilih akun kas"
+            >
+              <template #item="{ props, item }">
+                <v-list-item v-bind="props" :title="`${item.raw.kode} - ${item.raw.nama}`" />
+              </template>
+              <template #selection="{ item }">
+                <span class="text-caption">{{ item.raw.kode }} - {{ item.raw.nama }}</span>
+              </template>
+            </v-select>
+          </div>
+
+          <div class="f-row">
+            <label class="f-lbl">Akun Penjualan</label>
+            <v-select
+              v-model="form.rekPenjualan"
+              :items="rekPenjualanOptions"
+              item-title="nama"
+              item-value="kode"
+              density="compact"
+              variant="outlined"
+              hide-details
+              clearable
+              :disabled="isSaving"
+              placeholder="Pilih akun penjualan"
+            >
+              <template #item="{ props, item }">
+                <v-list-item v-bind="props" :title="`${item.raw.kode} - ${item.raw.nama}`" />
+              </template>
+              <template #selection="{ item }">
+                <span class="text-caption">{{ item.raw.kode }} - {{ item.raw.nama }}</span>
+              </template>
+            </v-select>
+          </div>
+
+          <div class="f-row">
+            <label class="f-lbl">Akun Piutang</label>
+            <v-select
+              v-model="form.rekPiutang"
+              :items="rekPiutangOptions"
+              item-title="nama"
+              item-value="kode"
+              density="compact"
+              variant="outlined"
+              hide-details
+              clearable
+              :disabled="isSaving"
+              placeholder="Pilih akun piutang"
+            >
+              <template #item="{ props, item }">
+                <v-list-item v-bind="props" :title="`${item.raw.kode} - ${item.raw.nama}`" />
+              </template>
+              <template #selection="{ item }">
+                <span class="text-caption">{{ item.raw.kode }} - {{ item.raw.nama }}</span>
+              </template>
+            </v-select>
+          </div>
+
+          <div class="f-row">
+            <label class="f-lbl"></label>
+            <span class="text-caption" style="color:#6b7280; font-size:10px;">
+              Akun yang tidak diisi akan memakai akun default (Kas: 11.002, Piutang: 14.001, Penjualan: 21.001, Persediaan: per grup barang / 17.004).
+            </span>
           </div>
 
         </div>

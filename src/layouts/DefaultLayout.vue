@@ -362,6 +362,12 @@ const menus = [
         route: "/laporan/penjualan-item",
         menuId: null,
       },
+	  {
+        title: "Laporan Hutang",
+        icon: IconList,
+        route: "/laporan/hutang",
+        menuId: null,
+      },
       {
         title: "Neraca",
         icon: IconList,
