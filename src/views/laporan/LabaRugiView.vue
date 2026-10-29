@@ -4,6 +4,7 @@ import { useToast } from "vue-toastification";
 import { isAuthExpiredError } from "@/api/axios";
 import { IconList, IconRefresh } from "@tabler/icons-vue";
 import { labaRugiApi, type LabaRugiData } from "@/api/laporan/neracaLabRugiApi";
+import { cabangApi, type Cabang } from "@/api/master/cabangApi";
 
 const toast = useToast();
 
@@ -26,12 +27,27 @@ const loc = (d: Date) =>
 
 const startDate = ref(saved?.startDate ?? loc(firstDay));
 const endDate = ref(saved?.endDate ?? loc(now));
+const cabang = ref(saved?.cabang ?? "all");
 
-watch([startDate, endDate], () => {
+const cabangOptions = ref<Cabang[]>([]);
+const cabangLoad = async () => {
+  try {
+    cabangOptions.value = await cabangApi.getAll();
+  } catch {
+    /* silent */
+  }
+};
+cabangLoad();
+
+watch([startDate, endDate, cabang], () => {
   try {
     sessionStorage.setItem(
       STORAGE_KEY,
-      JSON.stringify({ startDate: startDate.value, endDate: endDate.value })
+      JSON.stringify({
+        startDate: startDate.value,
+        endDate: endDate.value,
+        cabang: cabang.value,
+      })
     );
   } catch {
     /* silent */
@@ -46,7 +62,11 @@ const loadData = async () => {
   if (!startDate.value || !endDate.value) return;
   isLoading.value = true;
   try {
-    data.value = await labaRugiApi.getLabaRugi(startDate.value, endDate.value);
+    data.value = await labaRugiApi.getLabaRugi(
+      startDate.value,
+      endDate.value,
+      cabang.value
+    );
   } catch (e: any) {
     if (!isAuthExpiredError(e))
       toast.error(e.response?.data?.message ?? "Gagal memuat laba rugi.");
@@ -109,6 +129,13 @@ const summaryRows = computed(() =>
         <input v-model="startDate" type="date" class="date-inp" />
         <span class="lr-sep">s/d</span>
         <input v-model="endDate" type="date" class="date-inp" />
+        <span class="lr-sep">Cabang</span>
+        <select v-model="cabang" class="date-inp cab-inp">
+          <option value="all">Semua Cabang</option>
+          <option v-for="c in cabangOptions" :key="c.kode" :value="c.kode">
+            {{ c.kode }} - {{ c.nama }}
+          </option>
+        </select>
         <v-btn size="small" variant="tonal" color="primary" :loading="isLoading" @click="loadData">
           <template #prepend><IconRefresh :size="13" :stroke-width="1.8" /></template>
           Refresh
@@ -201,6 +228,11 @@ const summaryRows = computed(() =>
   font-size: 12px;
   outline: none;
   width: 140px;
+  background: #fff;
+}
+.cab-inp {
+  min-width: 170px;
+  width: 170px;
 }
 .date-inp:focus {
   border-color: #3b5998;

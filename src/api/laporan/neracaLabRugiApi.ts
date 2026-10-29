@@ -37,6 +37,7 @@ export interface LabaRugiGroup {
 
 export interface LabaRugiData {
   periode: { start: string; end: string };
+  cabang: string;
   groups: LabaRugiGroup[];
   total: {
     pendapatanPenjualan: number;
@@ -60,9 +61,9 @@ export const neracaApi = {
 };
 
 export const labaRugiApi = {
-  getLabaRugi: async (startDate: string, endDate: string) => {
+  getLabaRugi: async (startDate: string, endDate: string, cabang = "all") => {
     const { data } = await api.get("/laporan/akunting/labarugi", {
-      params: { startDate, endDate },
+      params: { startDate, endDate, cabang },
     });
     return data.data as LabaRugiData;
   },
