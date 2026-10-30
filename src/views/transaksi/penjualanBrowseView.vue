@@ -284,6 +284,14 @@ const rowPropsFn = (data: any) => {
     :expanded="expanded"
     id-key="Nomor"
     item-value="Nomor"
+    :summary-columns="[
+      { key: 'Total' },
+      { key: 'Ppn' },
+      { key: 'Cash' },
+      { key: 'Ongkir' },
+      { key: 'Piutang' },
+      { key: 'Card' }
+    ]"
     @update:expanded="onUpdateExpanded"
     v-model:selected="selected"
     @refresh="loadData"
@@ -414,19 +422,7 @@ const rowPropsFn = (data: any) => {
       </div>
     </template>
 
-    <template #summary-row="{ filteredItems }">
-      <span class="summary-lbl" style="color: white; font-weight: bold;">Total Penjualan</span>
-      <span class="summary-val" style="color: white; font-weight: bold;">
-        {{
-          fmt(
-            filteredItems.reduce(
-              (s: number, r: any) => s + Number(r.Total),
-              0,
-            ),
-          )
-        }}
-      </span>
-    </template>
+
   </BaseBrowse>
 
   <!-- ── Printer Dialog ── -->

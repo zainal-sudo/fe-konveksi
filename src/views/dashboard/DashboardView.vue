@@ -176,13 +176,21 @@ const renderSalesCharts = () => {
   if (salesDonutRef.value) {
     salesDonutChart?.destroy();
     const k = s.komposisi;
+    const jenisPembayaran: [string, number][] = [
+      ["Cash (DP)", k.dp],
+      ["Kartu", k.card],
+      ["Voucher", k.voucher],
+      ["Piutang (Kredit)", k.piutang],
+    ];
     salesDonutChart = new Chart(salesDonutRef.value, {
       type: "doughnut",
       data: {
-        labels: ["Cash (DP)", "Kartu", "Voucher", "Piutang (Kredit)"],
+        labels: jenisPembayaran.map(([lbl, val]) =>
+          val ? `${lbl} = Rp ${fmtCompact(val)}` : lbl,
+        ),
         datasets: [
           {
-            data: [k.dp, k.card, k.voucher, k.piutang],
+            data: jenisPembayaran.map(([, val]) => val),
             backgroundColor: ["#43a047", "#1e88e5", "#fb8c00", "#c62828"],
             borderWidth: 1,
           },
