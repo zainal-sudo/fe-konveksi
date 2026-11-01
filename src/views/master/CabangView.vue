@@ -56,6 +56,9 @@ const isSaving = ref(false);
 
 const emptyForm = () => ({
   isEdit: false, kode: "", nama: "", alamat: "", kota: "",
+  headerNama: null as string | null,
+  headerAlamat: null as string | null,
+  headerTelp: null as string | null,
   rekPersediaan: null as string | null,
   rekKas: null as string | null,
   rekPenjualan: null as string | null,
@@ -103,6 +106,9 @@ const openEdit = (item: Cabang) => {
     nama: item.nama,
     alamat: item.alamat,
     kota: item.kota,
+    headerNama: (item as any).headerNama || null,
+    headerAlamat: (item as any).headerAlamat || null,
+    headerTelp: (item as any).headerTelp || null,
     rekPersediaan: item.rekPersediaan || null,
     rekKas: item.rekKas || null,
     rekPenjualan: item.rekPenjualan || null,
@@ -227,6 +233,41 @@ const handleDelete = async (item: Cabang) => {
               class="f-inp-native"
               :disabled="isSaving"
               placeholder="Kota cabang"
+            />
+          </div>
+
+          <div class="grid-separator">Header Faktur / Nota Cetak</div>
+
+          <div class="f-row">
+            <label class="f-lbl">Nama Header</label>
+            <input
+              type="text"
+              v-model="form.headerNama"
+              class="f-inp-native"
+              :disabled="isSaving"
+              placeholder="Contoh: CV. ZAINAL ABIDIN"
+            />
+          </div>
+
+          <div class="f-row">
+            <label class="f-lbl">Alamat Header</label>
+            <input
+              type="text"
+              v-model="form.headerAlamat"
+              class="f-inp-native"
+              :disabled="isSaving"
+              placeholder="Alamat untuk header cetak"
+            />
+          </div>
+
+          <div class="f-row">
+            <label class="f-lbl">Telp Header</label>
+            <input
+              type="text"
+              v-model="form.headerTelp"
+              class="f-inp-native"
+              :disabled="isSaving"
+              placeholder="Contoh: 0812-3456-7890"
             />
           </div>
 
@@ -362,6 +403,16 @@ const handleDelete = async (item: Cabang) => {
   .grid-fields-container { grid-template-columns: 1fr; }
 }
 .f-row { display: flex; align-items: center; min-width: 0; }
+.grid-separator {
+  grid-column: 1 / -1;
+  font-size: 11px;
+  font-weight: 700;
+  color: #3B5998;
+  text-transform: uppercase;
+  border-bottom: 1px solid #3B5998;
+  padding-bottom: 4px;
+  margin-top: 6px;
+}
 .f-row.align-start { align-items: flex-start; }
 .f-lbl {
   width: 130px;

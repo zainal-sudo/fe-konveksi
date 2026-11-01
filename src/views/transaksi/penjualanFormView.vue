@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, watch } from "vue";
+import { ref, computed, onMounted, onBeforeUnmount, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { useToast } from "vue-toastification";
 import { useAuthStore } from "@/stores/authStore";
@@ -92,6 +92,29 @@ const barangLoading = ref(false);
 const showCustomerModal = ref(false);
 const showBarangModal = ref(false);
 const activeDetailIndex = ref<number>(-1);
+// Multi-select via tombol "Tambah Barang": pilih banyak item sekaligus,
+// masing-masing baris baru memakai qty default yang diinput di atas list.
+const isMultiBarang = ref(false);
+const defaultQty = ref(1);
+
+// ── Kolom Harga Jual: separator ribuan saat ketik (12.500 / 125.000,50) ─
+// "." = ribuan, "," = desimal (format id-ID); row.harga tetap numerik.
+const formatHarga = (v: number | null | undefined): string => {
+  if (v === null || v === undefined || v === "") return "";
+  return new Intl.NumberFormat("id-ID", {
+    maximumFractionDigits: 2,
+  }).format(Number(v) || 0);
+};
+
+const onHargaInput = (d: PenjualanDetail, e: Event) => {
+  const el = e.target as HTMLInputElement;
+  const raw = el.value.replace(/[^\d.,]/g, "");
+  const normalized = raw.replace(/\./g, "").replace(/,/g, ".");
+  const n = parseFloat(normalized);
+  d.harga = Number.isNaN(n) ? 0 : n;
+  el.value = raw ? formatHarga(d.harga) : "";
+  calcTotal();
+};
 
 // ── Subtotal per baris (setelah disc % per item) & Subtotal Bruto ─────
 const rowSubtotal = (d: PenjualanDetail) => {
@@ -261,33 +284,30 @@ const onTanggalChange = () => {
 
 const openSearchBarang = (index: number) => {
   activeDetailIndex.value = index;
+  isMultiBarang.value = false; // isi satu baris (klik sel SKU)
   showBarangModal.value = true;
 };
 
 const openAddBarang = () => {
-  const last = form.value.detail[form.value.detail.length - 1];
-  if (last && !last.brgNama) {
-    activeDetailIndex.value = form.value.detail.length - 1;
-    showBarangModal.value = true;
-    return;
-  }
-
-  form.value.detail.push({
-    no: form.value.detail.length + 1,
-    brgKode: 0,
-    brgNama: "",
-    barcode: "",
-    satuan: "",
-    qty: 1,
-    harga: 0,
-    discPr: 0,
-    keterangan: "",
-    isiCrt: 1,
-    isiLsn: 1,
-  });
-
-  activeDetailIndex.value = form.value.detail.length - 1;
+  // Mode multi: tidak membuat baris kosong dulu — baris baru dibuat
+  // saat konfirmasi (semua barang tercentang langsung masuk dgn qty default)
+  isMultiBarang.value = true;
+  activeDetailIndex.value = -1;
   showBarangModal.value = true;
+};
+
+const fillRowFromBrg = (d: PenjualanDetail, brg: any) => {
+  d.brgKode = brg.kode || brg.Kode || brg.brgKode || "";
+  d.brgNama = brg.nama || brg.Nama || brg.brgNama || "";
+  d.barcode = brg.barcode || brg.Barcode || "";
+  d.satuan = brg.satuan || brg.Satuan || "";
+  // Harga jual dari master barang; kosong(0) → fallback harga beli master
+  const hrgJual = Number(brg.hrgJual ?? brg.HrgJual ?? 0);
+  const hrgBeli = Number(brg.hrgBeli ?? brg.HrgBeli ?? 0);
+  d.harga = hrgJual > 0 ? hrgJual : hrgBeli;
+  d.discPr = 0;
+  d.isiCrt = brg.isiCrt || 1;
+  d.isiLsn = brg.isiLsn || 1;
 };
 
 const selectBarang = (brg: any) => {
@@ -295,24 +315,44 @@ const selectBarang = (brg: any) => {
   const idx = activeDetailIndex.value;
   const d = form.value.detail[idx];
   if (d) {
-    d.brgKode = brg.kode || brg.Kode || brg.brgKode || "";
-    d.brgNama = brg.nama || brg.Nama || brg.brgNama || "";
-    d.barcode = brg.barcode || brg.Barcode || "";
-    d.satuan = brg.satuan || brg.Satuan || "";
-    // Harga jual dari master barang; kosong(0) → fallback harga beli master
-    const hrgJual = Number(brg.hrgJual ?? brg.HrgJual ?? 0);
-    const hrgBeli = Number(brg.hrgBeli ?? brg.HrgBeli ?? 0);
-    d.harga = hrgJual > 0 ? hrgJual : hrgBeli;
-    if (d.harga <= 0) {
+    fillRowFromBrg(d, brg);
+    if ((d.harga || 0) <= 0) {
       toast.info(`Master barang ${d.brgNama ?? d.brgKode} belum punya harga jual. Isi harga manual.`);
     }
-    d.discPr = 0;
-    d.isiCrt = brg.isiCrt || 1;
-    d.isiLsn = brg.isiLsn || 1;
   }
   showBarangModal.value = false;
   activeDetailIndex.value = -1;
   calcTotal();
+};
+
+// Multi-select: baris baru per item terpilih, qty pakai defaultQty
+const selectBarangMulti = (items: any[]) => {
+  if (!Array.isArray(items) || items.length === 0) return;
+  const q = Number(defaultQty.value) > 0 ? Number(defaultQty.value) : 1;
+  let adaHarga0 = false;
+  for (const brg of items) {
+    form.value.detail.push({
+      no: form.value.detail.length + 1,
+      brgKode: "",
+      brgNama: "",
+      barcode: "",
+      satuan: "",
+      qty: q,
+      harga: 0,
+      discPr: 0,
+      keterangan: "",
+      isiCrt: 1,
+      isiLsn: 1,
+    });
+    const d = form.value.detail[form.value.detail.length - 1];
+    fillRowFromBrg(d, brg);
+    if ((d.harga || 0) <= 0) adaHarga0 = true;
+  }
+  showBarangModal.value = false;
+  calcTotal();
+  toast.success(`${items.length} item ditambahkan dengan qty ${q}.`);
+  if (adaHarga0)
+    toast.info("Ada item yang belum punya harga jual di master. Isi harga manual.");
 };
 
 const onBarangModalClose = () => {
@@ -386,12 +426,22 @@ const resetForm = () => {
       toast.warning("Ada item barang yang belum dipilih.");
       return false;
     }
-    if ((d.qty || 0) <= 0) {
-      toast.warning(`Qty untuk ${d.brgNama} harus lebih dari 0.`);
+    if (!d.qty || (d.qty || 0) === 0) {
+      toast.warning(`Qty untuk ${d.brgNama} harus diisi (boleh minus untuk retur barang).`);
       return false;
     }
   }
   calcTotal();
+  // Fasilitas retur: qty minus diperbolehkan, TAPI total tagihan
+  // (amount + ongkir) tidak boleh minus = tidak boleh kembali uang.
+  // Retur yang melebihi belanja harus ditambal dengan belanja barang lain.
+  if (grandTotal.value < 0) {
+    toast.warning(
+      `Nilai retur melebihi total belanja (${fmtCurrency(grandTotal.value)}).\n` +
+      `Tambahkan belanja barang lain yang melebihi nilai yang di-retur.`,
+    );
+    return false;
+  }
   if (totalBayarJalan.value < grandTotal.value) {
     toast.warning(
       `Total pembayaran (${fmtCurrency(totalBayarJalan.value)}) kurang dari total tagihan (${fmtCurrency(grandTotal.value)}).`,
@@ -470,12 +520,9 @@ const confirmSave = async () => {
 
 const confirmCancel = () => {
   showCancelDialog.value = false;
-  // reset + tutup tab supaya saat dibuka lagi selalu mount fresh
-  // (tab keep-alive dengan form kosong bisa terjadi input ulang => nota ganda)
+  // Kosongkan form TANPA keluar dari halaman penjualan —
+  // siap langsung input nota berikutnya (tab tetap terbuka).
   form.value = emptyForm();
-  const targetPath = route.path;
-  router.push({ name: "penjualanBrowse" });
-  nextTick().then(() => tabsStore.closeTab(targetPath));
 };
 
 // ── Alur cetak faktur setelah simpan (Simpan & Cetak) ─────────────────
@@ -547,6 +594,99 @@ onMounted(() => {
   loadSearchOptions();
 });
 
+// ── SISTEM PENDING (HOLD) KERANJANG — porting dari kasir minimarket ─
+// F8 = pending keranjang (keranjang dikosongkan, nota belum dibuat).
+// F9 / tombol Ambil Pending = tarik nota pending ke form (lalu nota
+// pending otomatis dihapus dari antrean, tidak bisa ditarik 2x).
+const showPendingModal = ref(false);
+const pendingList = ref<any[]>([]);
+const pendingLoading = ref(false);
+const isPendingSaving = ref(false);
+
+const handlePendingTransaksi = async () => {
+  if (isPendingSaving.value) return;
+  if (!form.value.detail.length) {
+    toast.warning("Keranjang kosong — tidak ada yang bisa dipending.");
+    return;
+  }
+  isPendingSaving.value = true;
+  try {
+    const res = await penjualanFormApi.savePending({
+      cusKode: form.value.cusKode || "",
+      memo: form.value.memo || "",
+      detail: form.value.detail,
+    });
+    toast.info(`Transaksi dipending ${res.data?.nomor}. Keranjang dikosongkan.`);
+    form.value = emptyForm();
+  } catch (e: any) {
+    toast.error(e.response?.data?.message || "Gagal mempending transaksi.");
+  } finally {
+    isPendingSaving.value = false;
+  }
+};
+
+const openPendingList = async () => {
+  showPendingModal.value = true;
+  pendingLoading.value = true;
+  try {
+    pendingList.value = await penjualanFormApi.getPendingList();
+  } catch (e: any) {
+    pendingList.value = [];
+    toast.error(e.response?.data?.message || "Gagal memuat daftar pending.");
+  } finally {
+    pendingLoading.value = false;
+  }
+};
+
+const handleTakePending = async (item: any) => {
+  if (!item?.noPending && !item?.NO_PENDING) return;
+  const nomor = item.noPending || item.NO_PENDING;
+  try {
+    const restored = await penjualanFormApi.takePending(nomor);
+    const h = restored?.header || {};
+    form.value.cusKode = h.cusKode || "";
+    form.value.cusNama = item.customer || item.CUSTOMER || "";
+    form.value.memo = h.memo || "";
+    form.value.detail = (restored?.details || []).map((d: any) => ({
+      no: 0,
+      brgKode: Number(d.brgKode),
+      brgNama: d.brgNama || "",
+      barcode: d.barcode || "",
+      satuan: d.satuan || "",
+      qty: Number(d.qty) || 0,
+      harga: Number(d.harga) || 0,
+      discPr: Number(d.discPr) || 0,
+      keterangan: "",
+      isiCrt: 0,
+      isiLsn: 0,
+    }));
+    calcTotal();
+    showPendingModal.value = false;
+    toast.success(`Pending ${nomor} masuk keranjang (${form.value.detail.length} item).`);
+  } catch (e: any) {
+    toast.error(e.response?.data?.message || "Nomor pending sudah diambil / tidak ditemukan.");
+  }
+};
+
+const handleGlobalKeyDown = (event: KeyboardEvent) => {
+  if (event.key === "F8") {
+    event.preventDefault();
+    event.stopPropagation();
+    if (!showPendingModal.value && !showSaveDialog.value && !showCancelDialog.value) {
+      handlePendingTransaksi();
+    }
+  } else if (event.key === "F9") {
+    event.preventDefault();
+    event.stopPropagation();
+    if (!showPendingModal.value && !showSaveDialog.value && !showCancelDialog.value) {
+      openPendingList();
+    }
+  }
+};
+
+onMounted(() => document.addEventListener("keydown", handleGlobalKeyDown));
+onBeforeUnmount(() => document.removeEventListener("keydown", handleGlobalKeyDown));
+
 // Tab keep-alive: saat tab form yang sama dibuka lagi (nomor beda / dari browse),
 // muat ulang data supaya form tidak memakai state lama (penyebab nota ganda).
 watch(
@@ -582,6 +722,26 @@ const fmtNumber = (v: number) => new Intl.NumberFormat("id-ID").format(v || 0);
     @confirm-close="confirmClose"
   >
     <template #extra-actions>
+      <v-btn
+        v-if="!isEdit"
+        size="small"
+        variant="outlined"
+        color="deep-purple"
+        :loading="isPendingSaving"
+        @click="handlePendingTransaksi"
+      >
+        Pending
+      </v-btn>
+      <v-btn
+        v-if="!isEdit"
+        size="small"
+        variant="outlined"
+        color="light-blue"
+        @click="openPendingList"
+      >
+        Ambil Pending
+      </v-btn>
+
       <v-btn
         v-if="!isEdit"
         size="small"
@@ -697,12 +857,12 @@ const fmtNumber = (v: number) => new Intl.NumberFormat("id-ID").format(v || 0);
                   <input type="text" v-model="row.satuan" class="cell-inp tc readonly-bg" readonly placeholder="Pcs/Box" />
                 </td>
                 <td>
-                  <input type="number" v-model.number="row.qty" class="cell-inp tr text-blue font-weight-bold" @input="calcTotal" min="1" />
+                  <input type="number" v-model.number="row.qty" class="cell-inp tr text-blue font-weight-bold" @input="calcTotal" />
                 </td>
                 <td>
                   <div class="cell-currency-wrap">
                     <span class="cell-currency-prefix">Rp</span>
-                    <input type="number" v-model.number="row.harga" class="cell-inp cell-inp-currency tr text-green-darken-4 font-weight-bold" @input="calcTotal" placeholder="0" />
+                    <input type="text" :value="formatHarga(row.harga)" inputmode="decimal" class="cell-inp cell-inp-currency tr text-green-darken-4 font-weight-bold" @input="onHargaInput(row, $event)" placeholder="0" />
                   </div>
                 </td>
                 <td>
@@ -867,13 +1027,32 @@ const fmtNumber = (v: number) => new Intl.NumberFormat("id-ID").format(v || 0);
     <v-dialog v-model="showCancelDialog" max-width="320">
       <v-card rounded="lg">
         <v-card-title class="text-subtitle-1 font-weight-bold pa-3 bg-red-darken-4 text-white">Batalkan</v-card-title>
-        <v-card-text class="pa-4 text-body-2">Keluar dari halaman ini? Perubahan yang belum disimpan akan hilang.</v-card-text>
+        <v-card-text class="pa-4 text-body-2">Kosongkan semua isian form? Halaman tetap terbuka untuk input nota berikutnya.</v-card-text>
         <v-card-actions class="pa-2 bg-grey-lighten-4 justify-end">
           <v-btn size="small" variant="outlined" @click="showCancelDialog = false">Kembali</v-btn>
-          <v-btn size="small" color="error" variant="flat" @click="router.push({ name: 'penjualanBrowse' })">Ya, Keluar</v-btn>
+          <v-btn size="small" color="error" variant="flat" @click="confirmCancel">Ya, Kosongkan</v-btn>
         </v-card-actions>
       </v-card>
     </v-dialog>
+
+    <!-- Modal daftar nota pending (F9) -->
+    <SearchModal
+      v-model="showPendingModal"
+      title="Daftar Transaksi Dipending (Hold)"
+      :columns="[
+        { key: 'noPending', title: 'NO. PENDING', width: '150px' },
+        { key: 'tanggal', title: 'WAKTU PENDING', width: '150px' },
+        { key: 'customer', title: 'CUSTOMER' },
+        { key: 'jumlahItem', title: 'ITEM', width: '70px', align: 'end' },
+        { key: 'total', title: 'TOTAL', width: '120px', align: 'end' },
+      ]"
+      :items="pendingList"
+      :loading="pendingLoading"
+      search-placeholder="Cari nomor pending atau customer..."
+      :search-keys="['noPending', 'customer']"
+      item-key="noPending"
+      @select="handleTakePending"
+    />
 
     <SearchModal
       v-model="showCustomerModal"
@@ -904,9 +1083,25 @@ const fmtNumber = (v: number) => new Intl.NumberFormat("id-ID").format(v || 0);
       :server-search="true"
       search-placeholder="Cari kode atau nama barang..."
       :search-keys="['kode', 'nama']"
+      :multiselect="isMultiBarang"
+      item-key="kode"
       @select="selectBarang"
+      @select-multiple="selectBarangMulti"
       @search="searchBarang"
-    />
+    >
+      <template v-if="isMultiBarang" #toolbar>
+        <span class="font-weight-bold text-caption">Qty Default</span>
+        <input
+          type="number"
+          v-model.number="defaultQty"
+          min="1"
+          class="qty-default-inp"
+        />
+        <span class="text-caption text-grey">
+          semua item terpilih dibuat baris baru dengan qty ini
+        </span>
+      </template>
+    </SearchModal>
 
     <!-- ── Printer Dialog (Simpan & Cetak) ── -->
     <PrinterDialog
@@ -929,6 +1124,23 @@ const fmtNumber = (v: number) => new Intl.NumberFormat("id-ID").format(v || 0);
 </template>
 
 <style scoped>
+/* Input qty default di toolbar modal barang (multi-select) */
+.qty-default-inp {
+  width: 76px;
+  height: 28px;
+  border: 1px solid #3B5998;
+  border-radius: 4px;
+  padding: 0 6px;
+  font-size: 12px;
+  font-weight: 700;
+  text-align: center;
+  outline: none;
+  color: #3B5998;
+}
+.qty-default-inp:focus {
+  border-color: #2e4782;
+}
+
 .form-header-grid {
   display: grid;
   /* minmax(0,1fr): kolom kiri boleh menyusut di bawah min-content

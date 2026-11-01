@@ -41,7 +41,7 @@ const router = createRouter({
       meta: {
         layout: "DefaultLayout",
         requiresAuth: true,
-        menuId: "10",
+        menuId: "8",
         title: "Master Supplier",
       },
     },
@@ -52,7 +52,7 @@ const router = createRouter({
       meta: {
         layout: "DefaultLayout",
         requiresAuth: true,
-        menuId: "11",
+        menuId: "6",
         title: "Master Kategori",
       },
     },
@@ -63,7 +63,7 @@ const router = createRouter({
       meta: {
         layout: "DefaultLayout",
         requiresAuth: true,
-        menuId: "95",
+        menuId: null,
         title: "Master Cabang",
       },
     },
@@ -74,7 +74,7 @@ const router = createRouter({
       meta: {
         layout: "DefaultLayout",
         requiresAuth: true,
-        menuId: "30",
+        menuId: "7",
         title: "Master Proses",
       },
     },
@@ -85,7 +85,7 @@ const router = createRouter({
       meta: {
         layout: "DefaultLayout",
         requiresAuth: true,
-        menuId: "13",
+        menuId: "5",
         title: "Master Barang",
       },
     },
@@ -96,7 +96,7 @@ const router = createRouter({
   meta: {
     layout: "DefaultLayout",
     requiresAuth: true,
-    menuId: "20",
+    menuId: "4",
     title: "Master Jenis Barang",
   },
 },
@@ -118,7 +118,7 @@ const router = createRouter({
       meta: {
         layout: "DefaultLayout",
         requiresAuth: true,
-        menuId: "14",
+        menuId: "9",
         title: "Master Customer",
       },
     },
@@ -129,7 +129,7 @@ const router = createRouter({
       meta: {
         layout: "DefaultLayout",
         requiresAuth: true,
-        menuId: "16",
+        menuId: "10",
         title: "Master Gudang",
       },
 	  
@@ -141,7 +141,7 @@ const router = createRouter({
       meta: {
         layout: "DefaultLayout",
         requiresAuth: true,
-        menuId: "7",
+        menuId: "2",
         title: "Master Kelompok",
       },
 	},  
@@ -152,7 +152,7 @@ const router = createRouter({
       meta: {
         layout: "DefaultLayout",
         requiresAuth: true,
-        menuId: "6",
+        menuId: "3",
         title: "Master Rekening",
       },
 	},  
@@ -167,7 +167,7 @@ const router = createRouter({
       meta: {
         layout: "DefaultLayout",
         requiresAuth: true,
-        menuId: "15",
+        menuId: "11",
         title: "PO",
       },
     },
@@ -178,7 +178,7 @@ const router = createRouter({
       meta: {
         layout: "DefaultLayout",
         requiresAuth: true,
-        menuId: "15",
+        menuId: "11",
         title: "Tambah PO",
         browseRoute: "poBrowse",
       },
@@ -190,7 +190,7 @@ const router = createRouter({
       meta: {
         layout: "DefaultLayout",
         requiresAuth: true,
-        menuId: "15",
+        menuId: "11",
         title: "Ubah PO",
         browseRoute: "poBrowse",
       },
@@ -212,7 +212,7 @@ const router = createRouter({
 	  component: () => import("@/views/transaksi/bpbBrowseView.vue"),
 	  meta: {  layout: "DefaultLayout",
         requiresAuth: true,
-        menuId: "17",
+        menuId: "12",
         browseRoute: "bpbBrowse", },
 	},
 	{
@@ -221,7 +221,7 @@ const router = createRouter({
 	  component: () => import("@/views/transaksi/bpbFormView.vue"),
 	  meta: { layout: "DefaultLayout",
         requiresAuth: true,
-        menuId: "17",
+        menuId: "12",
         title: "Tambah BPB",
         browseRoute: "bpbBrowse", },
 	},
@@ -231,7 +231,7 @@ const router = createRouter({
 	  component: () => import("@/views/transaksi/bpbFormView.vue"),
 	  meta: { layout: "DefaultLayout",
         requiresAuth: true,
-        menuId: "17",
+        menuId: "12",
         title: "Ubah BPB",
         browseRoute: "bpbBrowse",},
 	},
@@ -241,7 +241,7 @@ const router = createRouter({
 	  component: () => import("@/views/transaksi/penyesuaianStokBrowseView.vue"),
 	  meta: { layout: "DefaultLayout",
         requiresAuth: true,
-        menuId: "27",
+        menuId: "18",
         browseRoute: "penyesuaianStokBrowse", },
 	},
 	{
@@ -250,7 +250,7 @@ const router = createRouter({
 	  component: () => import("@/views/transaksi/penyesuaianStokFormView.vue"),
 	  meta: { layout: "DefaultLayout",
         requiresAuth: true,
-        menuId: "27",
+        menuId: "18",
         title: "Tambah Penyesuaian Stok",
         browseRoute: "penyesuaianStokBrowse", },
 	},
@@ -260,7 +260,7 @@ const router = createRouter({
 	  component: () => import("@/views/transaksi/penyesuaianStokFormView.vue"),
 	  meta: { layout: "DefaultLayout",
         requiresAuth: true,
-        menuId: "27",
+        menuId: "18",
         title: "Ubah Penyesuaian Stok",
         browseRoute: "penyesuaianStokBrowse",},
 	},
@@ -270,7 +270,7 @@ const router = createRouter({
 	  component: () => import("@/views/transaksi/InvBrowse.vue"),
 	  meta: { layout: "DefaultLayout",
         requiresAuth: true,
-        menuId: "12",
+        menuId: "13",
         title: "Invoice Pembelian",
         browseRoute: "invBrowse", },
 	},
@@ -280,7 +280,7 @@ const router = createRouter({
 	  component: () => import("@/views/transaksi/InvForm.vue"),
 	  meta: { layout: "DefaultLayout",
         requiresAuth: true,
-        menuId: "12",
+        menuId: "13",
         title: "Tambah Invoice",
         browseRoute: "invBrowse", },
 	},
@@ -290,7 +290,7 @@ const router = createRouter({
 	  component: () => import("@/views/transaksi/InvForm.vue"),
 	  meta: { layout: "DefaultLayout",
         requiresAuth: true,
-        menuId: "12",
+        menuId: "13",
         title: "Ubah Invoice",
         browseRoute: "invBrowse", },
 	},
@@ -300,7 +300,7 @@ const router = createRouter({
 	  component: () => import("@/views/transaksi/returBrowseView.vue"),
 	  meta: {  layout: "DefaultLayout",
         requiresAuth: true,
-        menuId: "19",
+        menuId: "14",
         browseRoute: "returBrowse", },
 	},
 	{
@@ -309,7 +309,7 @@ const router = createRouter({
 	  component: () => import("@/views/transaksi/returFormView.vue"),
 	  meta: { layout: "DefaultLayout",
         requiresAuth: true,
-        menuId: "19",
+        menuId: "14",
         title: "Tambah Retur",
         browseRoute: "returBrowse", },
 	},
@@ -319,7 +319,7 @@ const router = createRouter({
 	  component: () => import("@/views/transaksi/returFormView.vue"),
 	  meta: { layout: "DefaultLayout",
         requiresAuth: true,
-        menuId: "19",
+        menuId: "14",
         title: "Ubah Retur",
         browseRoute: "returBrowse",},
 	},
@@ -329,7 +329,7 @@ const router = createRouter({
 	  component: () => import("@/views/transaksi/BayarSupplierView.vue"),
 	  meta: {  layout: "DefaultLayout",
         requiresAuth: true,
-        menuId: "53",
+        menuId: "15",
         browseRoute: "bayarSupplierBrowse", },
 	},
 	{
@@ -338,7 +338,7 @@ const router = createRouter({
 	  component: () => import("@/views/transaksi/BayarSupplierForm.vue"),
 	  meta: { layout: "DefaultLayout",
         requiresAuth: true,
-        menuId: "53",
+        menuId: "15",
         title: "Tambah bayarSupplier",
         browseRoute: "bayarSupplierBrowse", },
 	},
@@ -348,7 +348,7 @@ const router = createRouter({
 	  component: () => import("@/views/transaksi/BayarSupplierForm.vue"),
 	  meta: { layout: "DefaultLayout",
         requiresAuth: true,
-        menuId: "53",
+        menuId: "15",
         title: "Ubah bayarSupplier",
         browseRoute: "bayarSupplierBrowse",},
 	},
@@ -359,7 +359,7 @@ const router = createRouter({
   meta: {
     layout: "DefaultLayout",
     requiresAuth: true,
-    menuId: "40",
+    menuId: "17",
     title: "STBJ",
     browseRoute: "stbjBrowse",
   },
@@ -371,7 +371,7 @@ const router = createRouter({
   meta: {
     layout: "DefaultLayout",
     requiresAuth: true,
-    menuId: "40",
+    menuId: "17",
     title: "Tambah STBJ",
     browseRoute: "stbjBrowse",
   },
@@ -383,7 +383,7 @@ const router = createRouter({
   meta: {
     layout: "DefaultLayout",
     requiresAuth: true,
-    menuId: "40",
+    menuId: "17",
     title: "Ubah STBJ",
     browseRoute: "stbjBrowse",
   },
@@ -395,7 +395,7 @@ const router = createRouter({
   meta: {
     layout: "DefaultLayout",
     requiresAuth: true,
-    menuId: "84",
+    menuId: "16",
     title: "Surat Perintah Kerja",
     browseRoute: "spkBrowse",
   },
@@ -407,7 +407,7 @@ const router = createRouter({
   meta: {
     layout: "DefaultLayout",
     requiresAuth: true,
-    menuId: "84",
+    menuId: "16",
     title: "Tambah SPK",
     browseRoute: "spkBrowse",
   },
@@ -419,7 +419,7 @@ const router = createRouter({
   meta: {
     layout: "DefaultLayout",
     requiresAuth: true,
-    menuId: "84",
+    menuId: "16",
     title: "Ubah SPK",
     browseRoute: "spkBrowse",
   },
@@ -442,7 +442,7 @@ const router = createRouter({
   meta: {
     layout: "DefaultLayout",
     requiresAuth: true,
-    menuId: "13",
+    menuId: "19",
     title: "Mutasi Gudang",
     browseRoute: "mutasiBrowse",
   },
@@ -454,7 +454,7 @@ const router = createRouter({
   meta: {
     layout: "DefaultLayout",
     requiresAuth: true,
-    menuId: "13",
+    menuId: "19",
     title: "Tambah Mutasi Gudang",
     browseRoute: "mutasiBrowse",
   },
@@ -466,7 +466,7 @@ const router = createRouter({
   meta: {
     layout: "DefaultLayout",
     requiresAuth: true,
-    menuId: "13",
+    menuId: "19",
     title: "Ubah Mutasi Gudang",
     browseRoute: "mutasiBrowse",
   },
@@ -477,7 +477,7 @@ const router = createRouter({
 	  component: () => import("@/views/transaksi/penjualanBrowseView.vue"),
 	  meta: { layout: "DefaultLayout",
         requiresAuth: true,
-        menuId: "33",
+        menuId: "22",
         title: "Penjualan",
         browseRoute: "penjualanBrowse",}
 	 
@@ -488,7 +488,7 @@ const router = createRouter({
 	  component: () => import("@/views/transaksi/penjualanFormView.vue"),
 	   meta: { layout: "DefaultLayout",
         requiresAuth: true,
-        menuId: "33",
+        menuId: "22",
         title: "Tambah Penjualan",
         browseRoute: "penjualanBrowse",}
 	  
@@ -500,7 +500,7 @@ const router = createRouter({
       meta: {
         layout: "DefaultLayout",
         requiresAuth: true,
-        menuId: "33",
+        menuId: "22",
         title: "Ubah Penjualan",
         browseRoute: "penjualanBrowse",
       },
@@ -513,7 +513,7 @@ const router = createRouter({
       meta: {
         layout: "DefaultLayout",
         requiresAuth: true,
-        menuId: "51",
+        menuId: "23",
         title: "Pembayaran Customer",
         browseRoute: "BayarCustomerBrowse",
       },
@@ -525,7 +525,7 @@ const router = createRouter({
       meta: {
         layout: "DefaultLayout",
         requiresAuth: true,
-        menuId: "51",
+        menuId: "23",
         title: "Tambah Pembayaran Customer",
         browseRoute: "BayarCustomerBrowse",
       },
@@ -537,7 +537,7 @@ const router = createRouter({
       meta: {
         layout: "DefaultLayout",
         requiresAuth: true,
-        menuId: "51",
+        menuId: "23",
         title: "Ubah Pembayaran Customer",
         browseRoute: "BayarCustomerBrowse",
       },
@@ -550,7 +550,7 @@ const router = createRouter({
       meta: {
         layout: "DefaultLayout",
         requiresAuth: true,
-        menuId: "15",
+        menuId: "20",
         title: "Mutasi Cabang Out",
       },
     },
@@ -561,7 +561,7 @@ const router = createRouter({
       meta: {
         layout: "DefaultLayout",
         requiresAuth: true,
-        menuId: "15",
+        menuId: "20",
         title: "Buat Mutasi Out",
         browseRoute: "MutasiOut",
       },
@@ -573,7 +573,7 @@ const router = createRouter({
       meta: {
         layout: "DefaultLayout",
         requiresAuth: true,
-        menuId: "15",
+        menuId: "20",
         title: "Ubah Mutasi Out",
         browseRoute: "MutasiOut",
       },
@@ -587,7 +587,7 @@ const router = createRouter({
       meta: {
         layout: "DefaultLayout",
         requiresAuth: true,
-        menuId: "17",
+        menuId: "21",
         title: "Mutasi Cabang In",
       },
     },
@@ -598,7 +598,7 @@ const router = createRouter({
       meta: {
         layout: "DefaultLayout",
         requiresAuth: true,
-        menuId: "17",
+        menuId: "21",
         title: "Terima Mutasi Cabang",
         browseRoute: "MutasiIn",
       },
@@ -610,7 +610,7 @@ const router = createRouter({
       meta: {
         layout: "DefaultLayout",
         requiresAuth: true,
-        menuId: "17",
+        menuId: "21",
         title: "Ubah Mutasi In",
         browseRoute: "MutasiIn",
       },
@@ -625,7 +625,7 @@ const router = createRouter({
       meta: {
         layout: "DefaultLayout",
         requiresAuth: true,
-        menuId: "41",
+        menuId: "24",
         title: "Jurnal Umum",
       },
     },
@@ -636,7 +636,7 @@ const router = createRouter({
       meta: {
         layout: "DefaultLayout",
         requiresAuth: true,
-        menuId: "41",
+        menuId: "24",
         title: "Tambah Jurnal Umum",
         browseRoute: "AccountingJurnalUmumBrowse",
       },
@@ -648,7 +648,7 @@ const router = createRouter({
       meta: {
         layout: "DefaultLayout",
         requiresAuth: true,
-        menuId: "41",
+        menuId: "24",
         title: "Ubah Jurnal Umum",
         browseRoute: "AccountingJurnalUmumBrowse",
       },
@@ -670,7 +670,7 @@ const router = createRouter({
       meta: {
         layout: "DefaultLayout",
         requiresAuth: true,
-        menuId: "24",
+        menuId: "25",
         title: "Pembayaran Lain Lain",
       },
     },
@@ -681,7 +681,7 @@ const router = createRouter({
       meta: {
         layout: "DefaultLayout",
         requiresAuth: true,
-        menuId: "24",
+        menuId: "25",
         title: "Tambah Pembayaran Lain Lain",
         browseRoute: "AccountingPembayaranLainBrowse",
       },
@@ -693,7 +693,7 @@ const router = createRouter({
       meta: {
         layout: "DefaultLayout",
         requiresAuth: true,
-        menuId: "24",
+        menuId: "25",
         title: "Ubah Pembayaran Lain Lain",
         browseRoute: "AccountingPembayaranLainBrowse",
       },
@@ -715,7 +715,7 @@ const router = createRouter({
       meta: {
         layout: "DefaultLayout",
         requiresAuth: true,
-        menuId: "23",
+        menuId: "26",
         title: "Penerimaan Lain Lain",
       },
     },
@@ -726,7 +726,7 @@ const router = createRouter({
       meta: {
         layout: "DefaultLayout",
         requiresAuth: true,
-        menuId: "23",
+        menuId: "26",
         title: "Tambah Penerimaan Lain Lain",
         browseRoute: "AccountingPenerimaanLainBrowse",
       },
@@ -738,7 +738,7 @@ const router = createRouter({
       meta: {
         layout: "DefaultLayout",
         requiresAuth: true,
-        menuId: "23",
+        menuId: "26",
         title: "Ubah Penerimaan Lain Lain",
         browseRoute: "AccountingPenerimaanLainBrowse",
       },
@@ -764,7 +764,7 @@ const router = createRouter({
       meta: {
         layout: "DefaultLayout",
         requiresAuth: true,
-        menuId: "51",
+        menuId: "23",
         title: "Pembayaran Customer",
       },
     },
@@ -775,7 +775,7 @@ const router = createRouter({
       meta: {
         layout: "DefaultLayout",
         requiresAuth: true,
-        menuId: "51",
+        menuId: "23",
         title: "Posting Pembayaran Customer",
         browseRoute: "PembayaranCustomerBrowse",
       },
@@ -787,7 +787,7 @@ const router = createRouter({
       meta: {
         layout: "DefaultLayout",
         requiresAuth: true,
-        menuId: "52",
+        menuId: "23",
         title: "Pembayaran Customer Kaosan",
       },
     },
@@ -799,7 +799,7 @@ const router = createRouter({
       meta: {
         layout: "DefaultLayout",
         requiresAuth: true,
-        menuId: "52",
+        menuId: "23",
         title: "Posting Pembayaran Customer Kaosan",
         browseRoute: "PembayaranCustKaosanBrowse",
       },
@@ -813,6 +813,7 @@ const router = createRouter({
       meta: {
         layout: "DefaultLayout",
         requiresAuth: true,
+        menuId: "27",
         title: "List Jurnal",
       },
     },
@@ -823,6 +824,7 @@ const router = createRouter({
       meta: {
         layout: "DefaultLayout",
         requiresAuth: true,
+        menuId: "28",
         title: "Lap Persediaan",
       },
     },
@@ -833,6 +835,7 @@ const router = createRouter({
       meta: {
         layout: "DefaultLayout",
         requiresAuth: true,
+        menuId: "29",
         title: "Jual Per Item",
       },
     },
@@ -883,6 +886,7 @@ const router = createRouter({
       meta: {
         layout: "DefaultLayout",
         requiresAuth: true,
+        menuId: "30",
         title: "Laporan Hutang",
       },
     },
@@ -893,6 +897,7 @@ const router = createRouter({
       meta: {
         layout: "DefaultLayout",
         requiresAuth: true,
+        menuId: "31",
         title: "Neraca",
       },
     },
@@ -903,6 +908,7 @@ const router = createRouter({
       meta: {
         layout: "DefaultLayout",
         requiresAuth: true,
+        menuId: "32",
         title: "Laba Rugi",
       },
     },
@@ -915,7 +921,7 @@ const router = createRouter({
       meta: {
         layout: "DefaultLayout",
         requiresAuth: true,
-        menuId: "1",
+        menuId: "33",
         title: "Master User",
       },
     },
@@ -926,7 +932,7 @@ const router = createRouter({
       meta: {
         layout: "DefaultLayout",
         requiresAuth: true,
-        menuId: "1",
+        menuId: "33",
         title: "Tambah User",
         browseRoute: "MasterUser",
       },
@@ -938,7 +944,7 @@ const router = createRouter({
       meta: {
         layout: "DefaultLayout",
         requiresAuth: true,
-        menuId: "1",
+        menuId: "33",
         title: "Ubah User",
         browseRoute: "MasterUser",
       },
@@ -989,14 +995,18 @@ router.beforeEach((to) => {
   )
     return { name: "Unauthorized", query: { from: to.fullPath } };
 
-  // ── Pembatasan user CABANG ('00' = pusat): hanya Penjualan + Mutasi (out/in).
-  // Sama daftarnya dengan menu di DefaultLayout — bertahan walau lewat URL langsung.
+  // ── Pembatasan user CABANG ('00' = pusat): hanya Penjualan + Mutasi (out/in)
+  // + Pembayaran Customer + Master Customer. Sama daftarnya dengan menu
+  // di DefaultLayout — bertahan walau lewat URL langsung.
   const cabang = authStore.userCabang || "00";
   if (cabang !== "00" && authStore.isAuthenticated) {
     const izinkanPrefix = [
       "/",
       "/settings/printer",
+      "/master/customer",
       "/transaksi/penjualan",
+      "/transaksi/bayarCustomer",
+      "/transaksi/penyesuaian-stok",
       "/transaksi/mutasi-out",
       "/transaksi/mutasi-in",
       "/laporan/persediaan",

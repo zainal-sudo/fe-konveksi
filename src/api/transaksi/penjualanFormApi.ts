@@ -56,4 +56,13 @@ export const penjualanFormApi = {
 
   save: (payload: PenjualanForm) =>
     api.post("/transaksi/penjualan/form/save", payload).then((r) => r.data),
+
+  savePending: (payload: { cusKode?: string; memo?: string; detail: PenjualanDetail[] }) =>
+    api.post("/transaksi/penjualan/form/pending-save", payload).then((r) => r.data),
+
+  getPendingList: () =>
+    api.get("/transaksi/penjualan/form/pending-list").then((r) => r.data.data),
+
+  takePending: (noPending: string) =>
+    api.post("/transaksi/penjualan/form/pending-take", { noPending }).then((r) => r.data.data),
 };

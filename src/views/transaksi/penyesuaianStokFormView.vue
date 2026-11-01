@@ -10,7 +10,6 @@ import {
   IconAdjustments,
   IconSearch,
   IconRefresh,
-  IconFileSpreadsheet,
   IconPlus,
   IconTrash,
 } from "@tabler/icons-vue";
@@ -19,7 +18,6 @@ import {
   type KoreksiForm,
   type KoreksiDetail,
 } from "@/api/transaksi/penyesuaianStokFormApi";
-import ExcelJS from "exceljs";
 
 const route = useRoute();
 const router = useRouter();
@@ -179,13 +177,11 @@ const openBarangModal = () => {
   searchBarang("");
 };
 
-const selectBarang = (item: any) => {
-  if (!item) return;
+const addBarangToDetail = (item: any): boolean => {
   if (
     form.value.detail.some((d) => String(d.brgKode) === String(item.brgKode))
   ) {
-    toast.warning("Barang sudah ada di daftar.");
-    return;
+    return false;
   }
   form.value.detail.push({
     nourut: form.value.detail.length + 1,
@@ -200,101 +196,27 @@ const selectBarang = (item: any) => {
     harga: Number(item.harga) || 0,
     nilai: null,
   });
+  return true;
+};
+
+// Multi-select: masukkan semua barang yg dicentang di modal Sekaligus
+const selectBarangMulti = (items: any[]) => {
+  if (!Array.isArray(items) || items.length === 0) return;
+  let added = 0;
+  for (const item of items) {
+    if (addBarangToDetail(item)) added++;
+  }
   showBarangModal.value = false;
-  toast.success(`${item.brgNama} ditambahkan.`);
+  if (added > 0) {
+    toast.success(`${added} barang ditambahkan ke daftar.`);
+  } else {
+    toast.warning("Semua barang terpilih sudah ada di daftar.");
+  }
 };
 
 const removeBarang = (idx: number) => {
   form.value.detail.splice(idx, 1);
   form.value.detail.forEach((d, i) => (d.nourut = i + 1));
-};
-
-// ── From Excel: import kolom Fisik dari file Excel ─────────────────────
-const fileInputRef = ref<HTMLInputElement | null>(null);
-const isImporting = ref(false);
-
-const triggerFromExcel = () => {
-  if (!form.value.detail.length) {
-    toast.warning('Klik "Load Data All" terlebih dahulu sebelum import Excel.');
-    return;
-  }
-  fileInputRef.value?.click();
-};
-
-const onFromExcelChange = async (e: Event) => {
-  const input = e.target as HTMLInputElement;
-  const file = input.files?.[0];
-  input.value = "";
-  if (!file) return;
-
-  isImporting.value = true;
-  try {
-    const buf = await file.arrayBuffer();
-    const wb = new ExcelJS.Workbook();
-    await wb.xlsx.load(buf);
-    const ws = wb.worksheets[0];
-    if (!ws) throw new Error("Sheet tidak ditemukan di file Excel.");
-
-    const headerRow = ws.getRow(1);
-    let colKode = -1;
-    let colFisik = -1;
-    headerRow.eachCell((cell, colNumber) => {
-      const val = String(cell.value ?? "")
-        .trim()
-        .toLowerCase();
-      if (["sku", "kode", "barcode", "kode barang"].includes(val))
-        colKode = colNumber;
-      if (["fisik", "qty fisik", "jumlah fisik", "stok fisik"].includes(val))
-        colFisik = colNumber;
-    });
-
-    if (colKode === -1 || colFisik === -1) {
-      throw new Error(
-        'Format Excel tidak dikenali. Pastikan ada kolom header "SKU"/"Kode" dan "Fisik".'
-      );
-    }
-
-    const byKode = new Map(
-      form.value.detail.map((d) => [String(d.brgKode), d])
-    );
-
-    let matched = 0;
-    let unmatched = 0;
-    ws.eachRow((row, rowNumber) => {
-      if (rowNumber === 1) return;
-      const kode = String(row.getCell(colKode).value ?? "").trim();
-      const fisikRaw = row.getCell(colFisik).value;
-      if (!kode) return;
-
-      const target = byKode.get(kode);
-      if (!target) {
-        unmatched++;
-        return;
-      }
-
-      const fisik = Number(fisikRaw);
-      if (Number.isNaN(fisik)) return;
-
-      target.fisik = fisik;
-      recalcRow(target);
-      matched++;
-    });
-
-    if (matched === 0) {
-      toast.warning("Tidak ada baris yang cocok dengan barang di gudang ini.");
-    } else {
-      toast.success(
-        `Berhasil import ${matched} barang dari Excel.` +
-          (unmatched > 0
-            ? ` (${unmatched} baris tidak dikenali, dilewati)`
-            : "")
-      );
-    }
-  } catch (err: any) {
-    toast.error(err.message || "Gagal membaca file Excel.");
-  } finally {
-    isImporting.value = false;
-  }
 };
 
 // ── Hitung ulang Qty & Nilai baris ──────────────────────────────────────
@@ -312,6 +234,25 @@ const recalcRow = (row: KoreksiDetail) => {
   const stokSystem = Number(row.stokSystem) || 0;
   row.qty = fisik - stokSystem;
   row.nilai = row.qty * (Number(row.harga) || 0);
+};
+
+// ── Kolom Harga: tampil dengan separator ribuan (12.500) ───────────────
+// "." = ribuan, "," = desimal (format id-ID, ketik bebas akan dibersihkan)
+const formatHarga = (v: number | null | undefined): string => {
+  if (v === null || v === undefined || v === "") return "";
+  return new Intl.NumberFormat("id-ID", {
+    maximumFractionDigits: 2,
+  }).format(Number(v) || 0);
+};
+
+const onHargaInput = (row: KoreksiDetail, e: Event) => {
+  const el = e.target as HTMLInputElement;
+  const raw = el.value.replace(/[^\d.,]/g, "");
+  const normalized = raw.replace(/\./g, "").replace(/,/g, ".");
+  const n = parseFloat(normalized);
+  row.harga = Number.isNaN(n) ? 0 : n;
+  el.value = raw ? formatHarga(row.harga) : "";
+  recalcRow(row);
 };
 
 // ── Computed totals ───────────────────────────────────────────────────
@@ -521,25 +462,8 @@ onMounted(() => loadData());
             <IconRefresh :size="14" :class="{ spin: isLoadingBarang }" />
             Load Semua Barang
           </button>
-          <button
-            v-if="form.detail.length"
-            class="btn-load btn-excel"
-            type="button"
-            :disabled="isImporting || isEdit"
-            @click="triggerFromExcel"
-          >
-            <IconFileSpreadsheet :size="14" />
-            {{ isImporting ? "Mengimpor..." : "From Excel" }}
-          </button>
         </template>
         <div v-else class="po-hint">← Pilih gudang untuk memuat barang</div>
-        <input
-          ref="fileInputRef"
-          type="file"
-          accept=".xlsx,.xls"
-          style="display: none"
-          @change="onFromExcelChange"
-        />
       </div>
     </div>
 
@@ -557,7 +481,6 @@ onMounted(() => loadData());
               <th style="width: 110px">SKU</th>
               <th>NAMA BARANG</th>
               <th style="width: 70px" class="tc">SATUAN</th>
-              <th style="width: 130px" class="tc">EXPIRED</th>
               <th style="width: 95px" class="tr">FISIK ✎</th>
               <th style="width: 95px" class="tr th-terima">STOK SYSTEM</th>
               <th style="width: 80px" class="tr">QTY</th>
@@ -568,17 +491,17 @@ onMounted(() => loadData());
           </thead>
           <tbody>
             <tr v-if="!form.gdgKode">
-              <td colspan="11" class="tc pa-6 text-grey italic">
+              <td colspan="10" class="tc pa-6 text-grey italic">
                 Pilih gudang terlebih dahulu.
               </td>
             </tr>
             <tr v-else-if="isLoadingBarang">
-              <td colspan="11" class="tc pa-6 text-grey italic">
+              <td colspan="10" class="tc pa-6 text-grey italic">
                 Memuat data barang...
               </td>
             </tr>
             <tr v-else-if="form.detail.length === 0">
-              <td colspan="11" class="tc pa-4 text-orange-darken-3">
+              <td colspan="10" class="tc pa-4 text-orange-darken-3">
                 Belum ada barang. Klik "Tambah Barang" untuk memilih satu per
                 satu, atau "Load Semua Barang" untuk memuat seluruh isi gudang
                 ini.
@@ -601,16 +524,6 @@ onMounted(() => loadData());
                 }}</span>
               </td>
               <td class="tc">{{ row.satuan }}</td>
-
-              <td>
-                <input
-                  type="date"
-                  v-model="row.expired"
-                  class="cell-inp tc"
-                  style="font-size: 10px"
-                  :disabled="isEdit"
-                />
-              </td>
 
               <td>
                 <input
@@ -645,13 +558,12 @@ onMounted(() => loadData());
 
               <td>
                 <input
-                  type="number"
-                  v-model.number="row.harga"
+                  type="text"
+                  inputmode="numeric"
+                  :value="formatHarga(row.harga)"
                   class="cell-inp tr"
-                  min="0"
-                  step="any"
                   :disabled="isEdit"
-                  @input="recalcRow(row)"
+                  @input="onHargaInput(row, $event)"
                 />
               </td>
 
@@ -682,7 +594,7 @@ onMounted(() => loadData());
           </tbody>
           <tfoot v-if="form.detail.length > 0">
             <tr class="tfoot-row">
-              <td colspan="7" class="tr pr-2 text-caption text-grey">
+              <td colspan="6" class="tr pr-2 text-caption text-grey">
                 TOTAL ({{ rowsBerubah.length }} diisi)
               </td>
               <td
@@ -805,7 +717,9 @@ onMounted(() => loadData());
       :server-search="true"
       search-placeholder="Cari SKU atau nama barang..."
       :search-keys="['brgKode', 'brgNama']"
-      @select="selectBarang"
+      :multiselect="true"
+      item-key="brgKode"
+      @select-multiple="selectBarangMulti"
       @search="searchBarang"
     />
   </BaseForm>
@@ -934,13 +848,6 @@ onMounted(() => loadData());
   background: #f3f4f6;
   color: #9e9e9e;
   border-color: #d1d5db;
-}
-.btn-excel {
-  background: #1e7e34;
-  margin-top: 6px;
-}
-.btn-excel:disabled {
-  background: #9e9e9e;
 }
 .btn-del {
   background: none;

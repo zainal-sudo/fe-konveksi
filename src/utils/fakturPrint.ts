@@ -67,7 +67,6 @@ export const buildPaymentColumn = (data: any): PrintMoneyLine[] => {
   const card = Number(data.card || 0);
   const piutang = Number(data.piutang || 0);
   const kembali = Number(data.kembali || 0);
-  const dp = Number(data.dp || 0);
 
   const lines: PrintMoneyLine[] = [
     { label: "Tunai         :", value: bayar },
@@ -82,7 +81,8 @@ export const buildPaymentColumn = (data: any): PrintMoneyLine[] => {
     });
   if (piutang !== 0) lines.push({ label: "Piutang       :", value: piutang });
   lines.push({ label: "Kembalian     :", value: kembali });
-  if (dp !== 0) lines.push({ label: "Kas di Laci   :", value: dp });
+  // Catatan: "Kas di Laci" sengaja TIDAK dicetak lagi di faktur —
+  // pembayaran cash ditampilkan langsung (Tunai/Kembalian) saja.
   return lines;
 };
 
@@ -111,12 +111,9 @@ export const buildSummaryRows = (data: any): string[] => {
   const totCol = buildTotalColumn(data);
   const rows: string[] = [];
 
-  // Judul kolom
-  rows.push(
-    padRight("PEMBAYARAN", PAY_COL_W) +
-      padRight("", SIG_COL_W * 2) +
-      padRight("TOTAL", TOT_COL_W)
-  );
+  // Judul kolom kiri: keterangan agunan dalam SATU baris (tanpa judul
+  // "TOTAL" — langsung disusul baris Disc Faktur/Total/Ppn/Grand Total).
+  rows.push(padRight("*Barang yang sudah di beli tidak dapat ditukar/dikembalikan", totalW));
 
   const moneyPart = (m: PrintMoneyLine | undefined): string => {
     if (!m) return padRight("", MONEY_COL_W);
@@ -165,6 +162,7 @@ export const buildSummaryRows = (data: any): string[] => {
 
   // 2 baris kosong di bawah tanda tangan agar page-break pas saat cetak
   // beberapa lembar (total blok summary jadi pas dengan LINES_PER_PAGE).
+  rows.push("");
   rows.push("");
   rows.push("");
 

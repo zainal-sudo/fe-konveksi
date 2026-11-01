@@ -26,6 +26,10 @@ const props = withDefaults(
     searchKeys?: string[]; // kolom yang ikut disearch, default semua
     serverSearch?: boolean; // true = search dikirim ke parent via @search
     itemsPerPage?: number;
+    // Multi-select: tambahkan kolom checkbox + tombol konfirmasi (emits
+    // select-multiple). Tidak mengubah perilaku pemakai yang tak set prop ini.
+    multiselect?: boolean;
+    itemKey?: string;
   }>(),
   {
     loading: false,
@@ -34,6 +38,8 @@ const props = withDefaults(
     searchKeys: () => [],
     serverSearch: false,
     itemsPerPage: 50,
+    multiselect: false,
+    itemKey: "kode",
   },
 );
 
@@ -41,7 +47,44 @@ const emit = defineEmits<{
   "update:modelValue": [val: boolean];
   select: [item: any];
   search: [query: string]; // hanya emit kalau serverSearch=true
+  "select-multiple": [items: any[]];
 }>();
+
+// ── Multi-select state ────────────────────────────────────────────────
+// Disimpan di Map agar pilihan tetap ada walau daftar berubah efek
+// search/halaman (serverSearch mengganti props.items).
+const selectedMap = ref<Map<string, any>>(new Map());
+
+const keyOf = (item: any): string =>
+  props.multiselect && props.itemKey ? String(item[props.itemKey]) : JSON.stringify(item);
+
+const isSelected = (item: any) => selectedMap.value.has(keyOf(item));
+
+const toggleRow = (item: any) => {
+  const k = keyOf(item);
+  if (selectedMap.value.has(k)) selectedMap.value.delete(k);
+  else selectedMap.value.set(k, item);
+};
+
+const visibleItems = computed(() => filteredItems.value); // hasil search/halaman aktif
+
+const allVisibleSelected = computed(
+  () =>
+    visibleItems.value.length > 0 &&
+    visibleItems.value.every((it) => selectedMap.value.has(keyOf(it))),
+);
+
+const toggleAllVisible = () => {
+  if (allVisibleSelected.value) {
+    visibleItems.value.forEach((it) => selectedMap.value.delete(keyOf(it)));
+  } else {
+    visibleItems.value.forEach((it) => selectedMap.value.set(keyOf(it), it));
+  }
+};
+
+const confirmMulti = () => {
+  emit("select-multiple", Array.from(selectedMap.value.values()));
+};
 
 const searchQuery = ref("");
 const currentPage = ref(1);
@@ -85,6 +128,7 @@ watch(
     if (val) {
       searchQuery.value = "";
       currentPage.value = 1;
+      selectedMap.value = new Map(); // reset pilihan multi tiap buka modal
     }
   },
 );
@@ -136,6 +180,11 @@ const formatValue = (val: any) => {
         </button>
       </div>
 
+      <!-- Toolbar opsional (mis. input qty default multi-select) -->
+      <div v-if="$slots.toolbar" class="sm-toolbar">
+        <slot name="toolbar" />
+      </div>
+
       <!-- Search input -->
       <div v-if="searchable" class="sm-search-bar">
         <div class="sm-search-wrap">
@@ -157,6 +206,18 @@ const formatValue = (val: any) => {
           <thead>
             <tr>
               <th
+                v-if="multiselect"
+                style="width: 34px; text-align: center"
+              >
+                <input
+                  type="checkbox"
+                  class="sm-check"
+                  :checked="allVisibleSelected"
+                  @click.stop="toggleAllVisible"
+                  @change="toggleAllVisible"
+                />
+              </th>
+              <th
                 v-for="col in columns"
                 :key="col.key"
                 :style="{ width: col.width, textAlign: col.align || 'left' }"
@@ -168,7 +229,7 @@ const formatValue = (val: any) => {
           <tbody>
             <!-- Loading state — tampil di dalam tabel, bukan replace tabel -->
             <tr v-if="loading">
-              <td :colspan="columns.length" class="sm-empty">
+              <td :colspan="columns.length + (multiselect ? 1 : 0)" class="sm-empty">
                 <div class="d-flex align-center justify-center gap-2">
                   <v-progress-circular
                     indeterminate
@@ -185,8 +246,21 @@ const formatValue = (val: any) => {
               v-for="(item, idx) in paginatedItems"
               :key="idx"
               class="sm-row"
-              @click="select(item)"
+              :class="{ 'sm-row-selected': multiselect && isSelected(item) }"
+              @click="multiselect ? toggleRow(item) : select(item)"
             >
+              <td
+                v-if="multiselect"
+                style="text-align: center"
+                @click.stop
+              >
+                <input
+                  type="checkbox"
+                  class="sm-check"
+                  :checked="isSelected(item)"
+                  @change="toggleRow(item)"
+                />
+              </td>
               <td
                 v-for="col in columns"
                 :key="col.key"
@@ -202,7 +276,7 @@ const formatValue = (val: any) => {
               </td>
             </tr>
             <tr v-if="!loading && !paginatedItems.length">
-              <td :colspan="columns.length" class="sm-empty">
+              <td :colspan="columns.length + (multiselect ? 1 : 0)" class="sm-empty">
                 Tidak ada data{{
                   searchQuery ? ` untuk "${searchQuery}"` : ""
                 }}.
@@ -215,6 +289,12 @@ const formatValue = (val: any) => {
       <!-- Footer info -->
       <div class="sm-footer">
         <span class="sm-count" v-if="loading">Memuat...</span>
+        <span class="sm-count" v-else-if="multiselect && selectedMap.size">
+          <span class="sm-selected-badge">{{ selectedMap.size }} dipilih</span>
+          {{ (currentPage - 1) * itemsPerPage + 1 }} -
+          {{ Math.min(currentPage * itemsPerPage, filteredItems.length) }}
+          dari {{ filteredItems.length }}
+        </span>
         <span class="sm-count" v-else-if="filteredItems.length > 0">
           {{ (currentPage - 1) * itemsPerPage + 1 }} -
           {{ Math.min(currentPage * itemsPerPage, filteredItems.length) }}
@@ -222,27 +302,41 @@ const formatValue = (val: any) => {
         </span>
         <span class="sm-count" v-else>0 data</span>
 
-        <div class="sm-pagination" v-if="totalPages > 1">
+        <div class="sm-footer-right">
           <button
-            class="page-btn"
-            :disabled="currentPage === 1"
-            @click="prevPage"
+            v-if="multiselect"
+            class="sm-confirm-btn"
+            :disabled="!selectedMap.size"
+            @click="confirmMulti"
           >
-            <IconChevronLeft :size="16" />
+            Tambah Terpilih
+            <span v-if="selectedMap.size" class="sm-confirm-n"
+              >({{ selectedMap.size }})</span
+            >
           </button>
-          <span class="page-info"
-            >Hal {{ currentPage }} / {{ totalPages }}</span
-          >
-          <button
-            class="page-btn"
-            :disabled="currentPage === totalPages"
-            @click="nextPage"
-          >
-            <IconChevronRight :size="16" />
-          </button>
-        </div>
 
-        <v-btn size="small" variant="text" @click="close">Tutup</v-btn>
+          <div class="sm-pagination" v-if="totalPages > 1">
+            <button
+              class="page-btn"
+              :disabled="currentPage === 1"
+              @click="prevPage"
+            >
+              <IconChevronLeft :size="16" />
+            </button>
+            <span class="page-info"
+              >Hal {{ currentPage }} / {{ totalPages }}</span
+            >
+            <button
+              class="page-btn"
+              :disabled="currentPage === totalPages"
+              @click="nextPage"
+            >
+              <IconChevronRight :size="16" />
+            </button>
+          </div>
+
+          <v-btn size="small" variant="text" @click="close">Tutup</v-btn>
+        </div>
       </div>
     </v-card>
   </v-dialog>
@@ -287,6 +381,17 @@ const formatValue = (val: any) => {
 .sm-close-btn:hover {
   background: rgba(var(--v-theme-on-surface), 0.07);
   color: #c62828;
+}
+
+/* Toolbar opsional */
+.sm-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 16px;
+  border-bottom: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
+  background: rgba(59, 89, 152, 0.04);
+  flex-shrink: 0;
 }
 
 /* Search bar */
@@ -443,5 +548,54 @@ const formatValue = (val: any) => {
   font-weight: 600;
   color: rgba(var(--v-theme-on-surface), 0.7);
   padding: 0 4px;
+}
+
+/* ── Multi-select ────────────────────────────────────────────────────── */
+.sm-check {
+  cursor: pointer;
+  accent-color: #3B5998;
+  width: 14px;
+  height: 14px;
+  vertical-align: middle;
+}
+.sm-row-selected td {
+  background: rgba(46, 46, 125, 0.06);
+}
+.sm-footer-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.sm-selected-badge {
+  background: #3B5998;
+  color: white;
+  font-weight: 700;
+  border-radius: 10px;
+  padding: 1px 8px;
+  margin-right: 6px;
+  font-size: 10px;
+}
+.sm-confirm-btn {
+  height: 28px;
+  padding: 0 12px;
+  background: #3B5998;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.sm-confirm-btn:hover:not(:disabled) {
+  background: #2e4782;
+}
+.sm-confirm-btn:disabled {
+  background: #c5cae9;
+  cursor: not-allowed;
+}
+.sm-confirm-n {
+  opacity: 0.85;
+  font-weight: 600;
 }
 </style>
