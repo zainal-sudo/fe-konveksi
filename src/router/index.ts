@@ -753,6 +753,18 @@ const router = createRouter({
         title: "Cetak Penerimaan Lain Lain",
       },
     },
+    // Laporan Harian
+    {
+      path: "/laporan/harian",
+      name: "LaporanHarianBrowse",
+      component: () => import("@/views/laporan/HarianView.vue"),
+      meta: {
+        layout: "DefaultLayout",
+        requiresAuth: true,
+        menuId: "",
+        title: "Laporan Harian",
+      },
+    },
     // Rekonsiliasi Bank
     
 
@@ -1009,9 +1021,12 @@ router.beforeEach((to) => {
       "/transaksi/penyesuaian-stok",
       "/transaksi/mutasi-out",
       "/transaksi/mutasi-in",
+      "/accounting/pembayaran-lain",
+      "/accounting/penerimaan-lain",
       "/laporan/persediaan",
       "/laporan/Persediaan",
       "/laporan/penjualan-item",
+      "/laporan/harian",
     ];
     const okPath = izinkanPrefix.some(
       (p) =>

@@ -59,7 +59,7 @@ const activeDetailIndex = ref(-1);
 // ── Load Data ────────────────────────────────────────────────────────
 const loadData = async () => {
   const nomor = route.params.nomor as string;
-  if (!nomor) {
+    if (!nomor) {
     form.value = {
       isEdit: false,
       nomor: "",
@@ -69,11 +69,23 @@ const loadData = async () => {
       account: "",
       namaAccount: "",
       tipe: form.value.tipe || "KM",
-      detail: [],
+      detail: [
+        {
+          no: 1,
+          account: "",
+          accountName: "",
+          nilai: 0,
+          memo: "",
+          costCenter: "",
+          customer: "",
+          kendaraan: "",
+          kilometer: 0,
+          ekspedisi: "",
+        },
+      ],
     };
     isLocked.value = false;
     await loadMaxNomor();
-    addRow();
     return;
   }
 
@@ -336,8 +348,9 @@ const getInputValue = (key: string, modelValue: number, decimals = 0) => {
 };
 
 const startEdit = (key: string, e: Event, raw: number) => {
-  rawInputValues[key] = String(raw);
-  (e.target as HTMLInputElement).value = String(raw);
+  const shown = new Intl.NumberFormat("en-US").format(raw || 0);
+  rawInputValues[key] = shown;
+  (e.target as HTMLInputElement).value = shown;
 };
 
 const endEdit = (key: string, e: Event, raw: number, decimals = 0) => {
@@ -350,8 +363,22 @@ const endEdit = (key: string, e: Event, raw: number, decimals = 0) => {
 
 const onNilaiInput = (e: Event, d: any, idx: number, field: string) => {
   const el = e.target as HTMLInputElement;
-  rawInputValues[field + '-' + idx] = el.value;
-  d[field] = Number(el.value.replace(/,/g, '')) || 0;
+  const digits = el.value.replace(/[^\d]/g, "");
+  const num = Number(digits) || 0;
+  const shown = digits === "" ? "" : new Intl.NumberFormat("en-US").format(num);
+  rawInputValues[field + '-' + idx] = shown;
+  d[field] = num;
+  if (el.value !== shown) el.value = shown;
+};
+
+const onHeaderNilaiInput = (e: Event) => {
+  const el = e.target as HTMLInputElement;
+  const digits = el.value.replace(/[^\d]/g, "");
+  const num = Number(digits) || 0;
+  const shown = digits === "" ? "" : new Intl.NumberFormat("en-US").format(num);
+  rawInputValues['header-nilai'] = shown;
+  form.value.nilai = num;
+  if (el.value !== shown) el.value = shown;
 };
 </script>
 
@@ -393,7 +420,7 @@ const onNilaiInput = (e: Event, d: any, idx: number, field: string) => {
             </div>
             <div class="f-row">
               <label class="f-lbl">Nilai <span class="req">*</span></label>
-              <input type="text" inputmode="numeric" class="f-inp text-right" style="max-width:200px" :value="getInputValue('header-nilai', form.nilai, 0)" @focus="startEdit('header-nilai', $event, form.nilai)" @input="rawInputValues['header-nilai'] = ($event.target as HTMLInputElement).value; form.nilai = Number(($event.target as HTMLInputElement).value.replace(/,/g, '')) || 0" @blur="endEdit('header-nilai', $event, form.nilai, 0)" />
+              <input type="text" inputmode="numeric" class="f-inp text-right" style="max-width:200px" :value="getInputValue('header-nilai', form.nilai, 0)" @focus="startEdit('header-nilai', $event, form.nilai)" @input="onHeaderNilaiInput($event)" @blur="endEdit('header-nilai', $event, form.nilai, 0)" />
             </div>
           </div>
         </fieldset>

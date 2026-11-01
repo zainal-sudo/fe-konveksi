@@ -344,6 +344,7 @@ const menus = [
     icon: IconReportMoney,
     menuId: null,
     children: [
+      { title: "Laporan Harian", icon: IconCash, route: "/laporan/harian", menuId: "" },
       {
         title: "List Jurnal",
         icon: IconList,
@@ -419,8 +420,15 @@ const ROUTE_CABANG_DIIZINKAN = [
   "/transaksi/mutasi-in",
   "/transaksi/mutasi-in/create",
   "/transaksi/mutasi-in/edit",
+  "/accounting/pembayaran-lain",
+  "/accounting/pembayaran-lain/create",
+  "/accounting/pembayaran-lain/edit",
+  "/accounting/penerimaan-lain",
+  "/accounting/penerimaan-lain/create",
+  "/accounting/penerimaan-lain/edit",
   "/laporan/persediaan",
   "/laporan/penjualan-item",
+  "/laporan/harian",
 ];
 
 const menuBolehUntukCabang = (menu: any) => {

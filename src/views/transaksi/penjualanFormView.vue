@@ -896,9 +896,8 @@ const fmtNumber = (v: number) => new Intl.NumberFormat("id-ID").format(v || 0);
 
       <div class="header-summary">
         <div class="summary-box">
-          <div class="summary-lbl">GRAND TOTAL SO</div>
           <div class="summary-val" :class="form.amount < 0 ? 'val-red-dark-bg' : 'val-green-dark-bg'">
-            Rp {{ fmtCurrency(form.amount) }}
+            {{ fmtCurrency(form.amount) }}
           </div>
         </div>
         <div class="summary-sub-rows">
@@ -1259,9 +1258,11 @@ const fmtNumber = (v: number) => new Intl.NumberFormat("id-ID").format(v || 0);
   opacity: 0.85;
 }
 .summary-val {
-  font-size: 22px;
-  font-weight: 800;
+  font-size: 40px !important;
+  font-weight: 800 !important;
   font-variant-numeric: tabular-nums;
+  padding: 10px 0;
+  line-height: 1.1;
 }
 .summary-sub-rows {
   margin-top: 8px;

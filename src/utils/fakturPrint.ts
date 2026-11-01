@@ -52,7 +52,7 @@ export const MONEY_COL_W = MONEY_LABEL_W + 1 + MONEY_VALUE_W; // 30 karakter
 // 4 kolom: pembayaran (kiri) | tanda tangan (tengah) | total (kanan)
 // Kolom dilibrary totalW=110 supaya blok summary ikut menyempit.
 export const PAY_COL_W = 30;
-export const TOT_COL_W = 30;
+export const TOT_COL_W = 45;
 export const SIG_COL_W = Math.floor((totalW - PAY_COL_W - TOT_COL_W) / 2); // 25 karakter
 
 export const centerText = (text: string, width: number): string => {
@@ -162,7 +162,6 @@ export const buildSummaryRows = (data: any): string[] => {
 
   // 2 baris kosong di bawah tanda tangan agar page-break pas saat cetak
   // beberapa lembar (total blok summary jadi pas dengan LINES_PER_PAGE).
-  rows.push("");
   rows.push("");
   rows.push("");
 

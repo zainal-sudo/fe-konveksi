@@ -65,6 +65,7 @@ const isSingleSelected = computed(() => selected.value.length === 1);
 const headers = [
   { title: "NOMOR", key: "Nomor", width: "150px", align: "center" },
   { title: "TANGGAL", key: "Tanggal", width: "110px", align: "center" },
+  { title: "JT TEMPO", key: "JtTempo", width: "110px", align: "center" },
   { title: "NAMA CUSTOMER", key: "Customer", minWidth: "220px" },
   { title: "KETERANGAN / MEMO", key: "Memo", minWidth: "250px" },
   { title: "PAJAK", key: "Pajak", width: "90px", align: "center" },
@@ -241,6 +242,7 @@ const doExport = async () => {
       columns: [
         { header: "Nomor", key: "Nomor", width: 20 },
         { header: "Tanggal", key: "Tanggal", width: 14, align: "center" },
+        { header: "Jt Tempo", key: "JtTempo", width: 14, align: "center" },
         { header: "Customer", key: "Customer", width: 28 },
         { header: "Memo", key: "Memo", width: 30 },
         { header: "Pajak", key: "Pajak", width: 10, align: "center" },
@@ -331,6 +333,10 @@ const rowPropsFn = (data: any) => {
 
     <template #item.Tanggal="{ item }">
       <div class="tc">{{ item.Tanggal }}</div>
+    </template>
+
+    <template #item.JtTempo="{ item }">
+      <div class="tc text-red-darken-2 font-weight-medium">{{ item.JtTempo }}</div>
     </template>
 
     <template #item.Total="{ item }">
