@@ -33,4 +33,16 @@ export const mutasiCabangOutApi = {
     );
     return data.data as MutasiCabangDetailRow[];
   },
+  hapus: async (nomor: string) => {
+    const { data } = await api.delete(
+      `/transaksi/mutasi-out/${encodeURIComponent(nomor)}`
+    );
+    return data as { success: boolean; message?: string };
+  },
+  getPrintData: async (nomor: string) => {
+    const { data } = await api.get(
+      `/transaksi/mutasi-out/print/${encodeURIComponent(nomor)}`
+    );
+    return data.data;
+  },
 };

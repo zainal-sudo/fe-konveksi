@@ -41,7 +41,7 @@ const selectedItem = computed(() => selected.value[0] ?? null);
 // Filter cabang untuk pusat
 const cabangOptions = ref<{ kode: string; nama: string }[]>([]);
 const isCabangUser = computed(() => (authStore.userCabang || "00") !== "00");
-const filterCabang = ref(isCabangUser.value ? String(authStore.userCabang) : "ALL");
+const filterCabang = ref(isCabangUser.value ? String(authStore.userCabang) : "00");
 
 watch([startDate, endDate, filterCabang], ([s, e]) => {
   try {
@@ -177,9 +177,9 @@ const doExport = async () => {
       <div class="filter-group" v-if="!isCabangUser">
         <span class="filter-lbl">Cabang</span>
         <select v-model="filterCabang" class="date-inp" style="width: 130px">
-          <option value="ALL">ALL</option>
+          <option value="ALL">-- SEMUA CABANG --</option>
           <option v-for="c in cabangOptions" :key="c.kode" :value="c.kode">
-            {{ c.nama }}
+            {{ c.kode }} - {{ c.nama }}
           </option>
         </select>
       </div>

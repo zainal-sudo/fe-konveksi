@@ -5,7 +5,14 @@ import { useToast } from "vue-toastification";
 import BaseBrowse from "@/components/BaseBrowse.vue";
 import { mutasiCabangOutApi } from "@/api/transaksi/mutasiCabangOutApi";
 import { exportToExcel } from "@/utils/exportExcel";
-import { IconTruckDelivery, IconFileSpreadsheet } from "@tabler/icons-vue";
+import { IconTruckDelivery, IconFileSpreadsheet, IconPrinter } from "@tabler/icons-vue";
+import { useQzPrint } from "@/composables/useQzPrint";
+import PrinterDialog from "@/components/PrinterDialog.vue";
+import PrintPreviewDialog from "@/components/PrintPreviewDialog.vue";
+import {
+  generatePreviewSuratJalan,
+  generateEscPosSuratJalan,
+} from "@/utils/suratJalanPrint";
 import { useAuthStore } from "@/stores/authStore";
 
 const router = useRouter();
@@ -36,7 +43,7 @@ const endDate = ref(p.endDate);
 // ── Filter cabang (pusat boleh pilih; user cabang terkunci) ──────────
 const cabangOptions = ref<{ kode: string; nama: string }[]>([]);
 const isCabangUser = computed(() => (authStore.userCabang || "00") !== "00");
-const filterCabang = ref(isCabangUser.value ? String(authStore.userCabang) : "ALL");
+const filterCabang = ref(isCabangUser.value ? String(authStore.userCabang) : "00");
 
 watch([startDate, endDate, filterCabang], ([s, e]) => {
   try {
@@ -131,6 +138,21 @@ const onUbah = () => {
   });
 };
 
+const onHapus = async () => {
+  if (!selectedItem.value) return toast.warning("Pilih data terlebih dahulu.");
+  if (selectedItem.value.Realisasi === "Sudah Diterima")
+    return toast.error("Mutasi sudah Diterima cabang tujuan, tidak dapat dihapus.");
+  if (!confirm(`Hapus Mutasi Cabang Out ${selectedItem.value.Nomor}?\nStok di gudang asal akan dikembalikan.`)) return;
+  try {
+    await mutasiCabangOutApi.hapus(selectedItem.value.Nomor);
+    toast.success(`Mutasi ${selectedItem.value.Nomor} berhasil dihapus.`);
+    delete detailMap.value[selectedItem.value.Nomor];
+    await loadData();
+  } catch (e: any) {
+    toast.error(e.response?.data?.message || "Gagal menghapus data.");
+  }
+};
+
 const doExport = async () => {
   if (items.value.length === 0) return toast.warning("Tidak ada data untuk diexport.");
   await exportToExcel({
@@ -148,6 +170,68 @@ const doExport = async () => {
     ],
     rows: items.value,
   });
+};
+
+// ── Cetak Surat Jalan (Dot Matrix / QZ Tray) ─────────────────────────
+const { connect, getSavedPrinter, printRaw } = useQzPrint();
+const isPrinting = ref(false);
+const showPrinterDialog = ref(false);
+const showPreviewDialog = ref(false);
+const previewLines = ref<string[]>([]);
+const cachedPrintData = ref<any | null>(null);
+
+const doCetak = async () => {
+  if (!selectedItem.value) {
+    toast.warning("Pilih satu data mutasi terlebih dahulu.");
+    return;
+  }
+  const savedPrinter = getSavedPrinter();
+  if (!savedPrinter) {
+    showPrinterDialog.value = true;
+    return;
+  }
+
+  isPrinting.value = true;
+  try {
+    const data = await mutasiCabangOutApi.getPrintData(selectedItem.value.Nomor);
+    cachedPrintData.value = data;
+    previewLines.value = generatePreviewSuratJalan(data);
+    showPreviewDialog.value = true;
+  } catch (e: any) {
+    toast.error(e.response?.data?.message || e.message || "Gagal memuat data cetak.");
+  } finally {
+    isPrinting.value = false;
+  }
+};
+
+const onPrinterSaved = async () => {
+  showPrinterDialog.value = false;
+  if (selectedItem.value && cachedPrintData.value) {
+    previewLines.value = generatePreviewSuratJalan(cachedPrintData.value);
+    showPreviewDialog.value = true;
+  }
+};
+
+const onPrintFromPreview = async () => {
+  showPreviewDialog.value = false;
+  const savedPrinter = getSavedPrinter();
+  if (!savedPrinter || !cachedPrintData.value) {
+    toast.warning("Printer belum diset.");
+    return;
+  }
+
+  isPrinting.value = true;
+  try {
+    const commands = generateEscPosSuratJalan(cachedPrintData.value);
+    await connect();
+    await printRaw(savedPrinter, commands);
+    toast.success("Berhasil dikirim ke printer!");
+  } catch (e: any) {
+    toast.error(e.message || "Gagal mencetak ke printer.");
+  } finally {
+    isPrinting.value = false;
+    cachedPrintData.value = null;
+  }
 };
 </script>
 
@@ -181,9 +265,9 @@ const doExport = async () => {
       <div class="filter-group" v-if="!isCabangUser">
         <span class="filter-lbl">Cabang</span>
         <select v-model="filterCabang" class="date-inp" style="width: 130px">
-          <option value="ALL">ALL</option>
+          <option value="ALL">-- SEMUA CABANG --</option>
           <option v-for="c in cabangOptions" :key="c.kode" :value="c.kode">
-            {{ c.nama }}
+            {{ c.kode }} - {{ c.nama }}
           </option>
         </select>
       </div>
@@ -192,6 +276,11 @@ const doExport = async () => {
     <template #extra-actions>
       <v-btn size="small" color="primary" variant="flat" @click="onBaru">+ Baru</v-btn>
       <v-btn size="small" variant="outlined" :disabled="!selectedItem" @click="onUbah">Ubah</v-btn>
+      <v-btn size="small" color="error" variant="tonal" :disabled="!selectedItem" @click="onHapus">Hapus</v-btn>
+      <v-btn size="small" variant="tonal" color="primary" :loading="isPrinting" :disabled="!selectedItem" @click="doCetak">
+        <template #prepend><IconPrinter :size="13" :stroke-width="1.8" /></template>
+        Cetak
+      </v-btn>
       <v-btn size="small" variant="tonal" color="success" @click="doExport">
         <template #prepend><IconFileSpreadsheet :size="13" /></template>
         Export
@@ -238,6 +327,20 @@ const doExport = async () => {
       </div>
     </template>
   </BaseBrowse>
+
+  <!-- ── Printer Dialog ── -->
+  <PrinterDialog
+    v-model="showPrinterDialog"
+    @saved="onPrinterSaved"
+  />
+
+  <!-- ── Print Preview Dialog ── -->
+  <PrintPreviewDialog
+    v-model="showPreviewDialog"
+    :lines="previewLines"
+    :is-loading="isPrinting"
+    @print="onPrintFromPreview"
+  />
 </template>
 
 <style scoped>

@@ -127,15 +127,7 @@ const selectSku = (item: SkuOption | null) => {
     return;
   }
 
-  if (form.value.detail[idx]) {
-    const d = form.value.detail[idx];
-    d.sku = item.sku;
-    d.namaBarang = item.namaBarang;
-    d.satuan = item.satuan;
-    d.expired = item.expired || "";
-    d.stok = Number(item.stok);
-    d.harga = Number(item.harga);
-  } else {
+  if (activeIdx.value >= form.value.detail.length && form.value.detail[activeIdx.value] === undefined) {
     form.value.detail.push({
       sku: item.sku,
       namaBarang: item.namaBarang,
@@ -147,7 +139,45 @@ const selectSku = (item: SkuOption | null) => {
       gudang: form.value.gudang,
       stok: Number(item.stok),
     });
-    activeIdx.value = form.value.detail.length - 1;
+  } else if (form.value.detail[idx]) {
+    const d = form.value.detail[idx];
+    d.sku = item.sku;
+    d.namaBarang = item.namaBarang;
+    d.satuan = item.satuan;
+    d.expired = item.expired || "";
+    d.stok = Number(item.stok);
+    d.harga = Number(item.harga);
+  }
+  showSkuModal.value = false;
+};
+
+const selectMultipleSku = (items: SkuOption[]) => {
+  if (!items || !items.length) return;
+  let addedCount = 0;
+  for (const item of items) {
+    // Cek duplikat (SKU + expired)
+    const duplicate = form.value.detail.find(
+      (d) => d.sku === item.sku && d.expired === (item.expired || "")
+    );
+    if (!duplicate) {
+      form.value.detail.push({
+        sku: item.sku,
+        namaBarang: item.namaBarang,
+        satuan: item.satuan,
+        qty: 0,
+        expired: item.expired || "",
+        keterangan: "",
+        harga: Number(item.harga),
+        gudang: form.value.gudang,
+        stok: Number(item.stok),
+      });
+      addedCount++;
+    }
+  }
+  if (addedCount > 0) {
+    toast.success(`${addedCount} barang ditambahkan.`);
+  } else {
+    toast.warning("Semua barang yang dipilih sudah ada di daftar.");
   }
   showSkuModal.value = false;
 };
@@ -197,10 +227,6 @@ const validateSave = () => {
     if (!d.sku) return showModal(`Baris ${i + 1}: barang belum dipilih.`);
     if ((d.qty || 0) <= 0)
       return showModal(`Jumlah untuk "${d.namaBarang}" harus lebih dari 0.`);
-    if (Number(d.qty) > Number(d.stok || 0))
-      return showModal(
-        `Jumlah "${d.namaBarang}" melebihi stok di gudang (stok: ${d.stok}).`
-      );
   }
   showSaveDialog.value = true;
 };
@@ -229,7 +255,12 @@ const confirmSave = async () => {
 
 const confirmCancel = () => {
   showCancelDialog.value = false;
-  router.push({ name: "MutasiOut" });
+  if (isEdit.value) {
+    router.push({ name: "MutasiOut" });
+  } else {
+    form.value = emptyForm();
+    if (isCabangUser.value) loadNomor();
+  }
 };
 
 const confirmClose = async () => {
@@ -565,9 +596,12 @@ const cabangNama = (kode: string) => {
       :items="skuOptions"
       :loading="skuLoading"
       :server-search="true"
+      :multiselect="true"
+      item-key="sku"
       search-placeholder="Cari kode atau nama barang..."
       :search-keys="['sku', 'namaBarang']"
       @select="selectSku"
+      @select-multiple="selectMultipleSku"
       @search="searchSku"
     />
   </BaseForm>
