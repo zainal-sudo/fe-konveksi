@@ -4,14 +4,17 @@ import { useRoute, useRouter } from "vue-router";
 import { useToast } from "vue-toastification";
 import { isAuthExpiredError } from "@/api/axios";
 import { penerimaanLainApi, type PenerimaanLainPrintData } from "@/api/accounting/penerimaanLainApi";
+import { useQzPrint } from "@/composables/useQzPrint";
 
 const route = useRoute();
 const router = useRouter();
 const toast = useToast();
+const { getSavedPrinter, printRaw, generateEscPosPenerimaanLain } = useQzPrint();
 
 const data = ref<PenerimaanLainPrintData | null>(null);
 const isLoading = ref(true);
 const isPrinting = ref(false);
+const isDotMatrixPrinting = ref(false);
 
 const fmt = (v: number) =>
   Number(v || 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -22,6 +25,27 @@ const doPrint = () => {
     window.print();
   } finally {
     isPrinting.value = false;
+  }
+};
+
+const doDotMatrixPrint = async () => {
+  if (!data.value) return;
+  const printer = getSavedPrinter();
+  if (!printer) {
+    toast.warning("Printer Dot Matrix belum disetting. Silakan setting terlebih dahulu di menu Setting Printer.");
+    router.push("/settings/printer");
+    return;
+  }
+
+  isDotMatrixPrinting.value = true;
+  try {
+    const rawData = generateEscPosPenerimaanLain(data.value);
+    await printRaw(printer, rawData);
+    toast.success("Berhasil mengirim cetak dot matrix.");
+  } catch (e: any) {
+    toast.error(e.message || "Gagal mencetak dot matrix via QZ Tray.");
+  } finally {
+    isDotMatrixPrinting.value = false;
   }
 };
 
@@ -49,7 +73,10 @@ onMounted(async () => {
   <div class="print-page">
     <!-- Toolbar (tidak ikut tercetak) -->
     <div class="print-toolbar no-print">
-      <button class="tb" :disabled="isLoading || isPrinting" @click="doPrint">Cetak</button>
+      <button class="tb" :disabled="isLoading || isPrinting" @click="doPrint">Cetak Browser (A5)</button>
+      <button class="tb tb-dotmatrix" :disabled="isLoading || isDotMatrixPrinting" @click="doDotMatrixPrint">
+        {{ isDotMatrixPrinting ? 'Mencetak...' : 'Cetak Dot Matrix' }}
+      </button>
       <button class="tb tb-secondary" @click="goBack">Tutup</button>
       <span v-if="isLoading" class="tb-loading">Memuat...</span>
     </div>
@@ -68,16 +95,18 @@ onMounted(async () => {
 
       <!-- No / Tanggal -->
       <table class="info-table">
-        <tr>
-          <td style="width: 60px">Nomor</td>
-          <td>: {{ data.nomor }}</td>
-          <td style="width: 60px">Tanggal</td>
-          <td>: {{ data.tanggal }}</td>
-        </tr>
-        <tr>
-          <td>Keterangan</td>
-          <td colspan="3">: {{ data.keterangan }}</td>
-        </tr>
+        <tbody>
+          <tr>
+            <td style="width: 60px">Nomor</td>
+            <td>: {{ data.nomor }}</td>
+            <td style="width: 60px">Tanggal</td>
+            <td>: {{ data.tanggal }}</td>
+          </tr>
+          <tr>
+            <td>Keterangan</td>
+            <td colspan="3">: {{ data.keterangan }}</td>
+          </tr>
+        </tbody>
       </table>
 
       <!-- Baris kas debet -->
@@ -161,6 +190,8 @@ onMounted(async () => {
 .tb:disabled { opacity: 0.6; cursor: default; }
 .tb-secondary { background: #F0F3F8; color: #1B2D4A; border-color: #A0AAB8; }
 .tb-secondary:hover { background: #E8ECF1; }
+.tb-dotmatrix { background: #2E7D32; border-color: #1B5E20; color: #fff; }
+.tb-dotmatrix:hover { background: #1B5E20; }
 .tb-loading { font-size: 12px; color: #E8ECF1; }
 
 /* ── Dokumen (A5 landscape 210 × 139.5mm) ── */

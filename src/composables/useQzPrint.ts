@@ -559,5 +559,155 @@ export function useQzPrint() {
     clearPrinter,
     generateEscPosPO,
     generateEscPosSPK,
+    generateEscPosPembayaranLain,
+    generateEscPosPenerimaanLain,
   };
+}
+
+/**
+ * Generate ESC/POS commands untuk Pembayaran Lain-Lain (80 kolom / draft)
+ */
+function generateEscPosPembayaranLain(data: {
+  perusahaan: { nama: string; alamat: string; kota: string; notelp: string };
+  nomor: string;
+  tanggal: string;
+  keterangan: string;
+  rekkredit: string;
+  kredit: number;
+  terbilang: string;
+  detail: { account: string; accountName: string; debet: number; costCenter: string }[];
+}): string[] {
+  const NL = "\r\n";
+  const ESC = "\x1B";
+  const W = 80;
+
+  const padRight = (str: string, len: number) =>
+    str.length >= len ? str.substring(0, len) : str + " ".repeat(len - str.length);
+  const padLeft = (str: string, len: number) =>
+    str.length >= len ? str.substring(0, len) : " ".repeat(len - str.length) + str;
+  const center = (str: string, len: number) => {
+    if (str.length >= len) return str.substring(0, len);
+    const p = len - str.length;
+    const l = Math.floor(p / 2);
+    return " ".repeat(l) + str + " ".repeat(p - l);
+  };
+  const fmt = (v: number) => new Intl.NumberFormat("id-ID").format(v || 0);
+
+  const cmds: string[] = [];
+  const push = (l: string) => cmds.push(l + NL);
+
+  cmds.push(ESC + "@");
+  cmds.push(ESC + "3" + "\x24");
+  cmds.push(ESC + "a" + "\x00");
+
+  push(data.perusahaan.nama.toUpperCase());
+  push(`${data.perusahaan.alamat} ${data.perusahaan.kota} - Telp: ${data.perusahaan.notelp}`);
+  push("=".repeat(W));
+  push(center("PEMBAYARAN LAIN-LAIN", W));
+  push("=".repeat(W));
+  push(`Nomor    : ${data.nomor}`);
+  push(`Tanggal  : ${data.tanggal}`);
+  push(`Ket      : ${data.keterangan}`);
+  push("-".repeat(W));
+  push(padRight("Kas/Bank : " + data.rekkredit, W - 20) + "Kredit: " + padLeft(fmt(data.kredit), 12));
+  push("-".repeat(W));
+  push(padRight("Akun Biaya / Detail", 22) + padRight("Nama Akun", 30) + padRight("CC", 12) + padLeft("Debet", 16));
+  push("-".repeat(W));
+
+  for (const d of data.detail) {
+    push(
+      padRight(d.account, 22) +
+      padRight(d.accountName, 30) +
+      padRight(d.costCenter || "-", 12) +
+      padLeft(fmt(d.debet), 16)
+    );
+  }
+
+  push("-".repeat(W));
+  push(padRight("Total", 64) + padLeft(fmt(data.kredit), 16));
+  push("=".repeat(W));
+  push(`Terbilang: ${data.terbilang} Rupiah`);
+  push("=".repeat(W));
+  push("");
+  push(padRight("Dibuat Oleh,", 26) + padRight("Diperiksa,", 27) + "Disetujui,");
+  push("");
+  push("");
+  push(padRight("(____________)", 26) + padRight("(____________)", 27) + "(____________)");
+  push(NL + NL + NL);
+
+  return cmds;
+}
+
+/**
+ * Generate ESC/POS commands untuk Penerimaan Lain-Lain (80 kolom / draft)
+ */
+function generateEscPosPenerimaanLain(data: {
+  perusahaan: { nama: string; alamat: string; kota: string; notelp: string };
+  nomor: string;
+  tanggal: string;
+  keterangan: string;
+  rekdebet: string;
+  debet: number;
+  terbilang: string;
+  detail: { account: string; accountName: string; kredit: number; costCenter: string }[];
+}): string[] {
+  const NL = "\r\n";
+  const ESC = "\x1B";
+  const W = 80;
+
+  const padRight = (str: string, len: number) =>
+    str.length >= len ? str.substring(0, len) : str + " ".repeat(len - str.length);
+  const padLeft = (str: string, len: number) =>
+    str.length >= len ? str.substring(0, len) : " ".repeat(len - str.length) + str;
+  const center = (str: string, len: number) => {
+    if (str.length >= len) return str.substring(0, len);
+    const p = len - str.length;
+    const l = Math.floor(p / 2);
+    return " ".repeat(l) + str + " ".repeat(p - l);
+  };
+  const fmt = (v: number) => new Intl.NumberFormat("id-ID").format(v || 0);
+
+  const cmds: string[] = [];
+  const push = (l: string) => cmds.push(l + NL);
+
+  cmds.push(ESC + "@");
+  cmds.push(ESC + "3" + "\x24");
+  cmds.push(ESC + "a" + "\x00");
+
+  push(data.perusahaan.nama.toUpperCase());
+  push(`${data.perusahaan.alamat} ${data.perusahaan.kota} - Telp: ${data.perusahaan.notelp}`);
+  push("=".repeat(W));
+  push(center("PENERIMAAN LAIN-LAIN", W));
+  push("=".repeat(W));
+  push(`Nomor    : ${data.nomor}`);
+  push(`Tanggal  : ${data.tanggal}`);
+  push(`Ket      : ${data.keterangan}`);
+  push("-".repeat(W));
+  push(padRight("Kas/Bank : " + data.rekdebet, W - 20) + "Debet : " + padLeft(fmt(data.debet), 12));
+  push("-".repeat(W));
+  push(padRight("Akun Pendapatan", 22) + padRight("Nama Akun", 30) + padRight("CC", 12) + padLeft("Kredit", 16));
+  push("-".repeat(W));
+
+  for (const d of data.detail) {
+    push(
+      padRight(d.account, 22) +
+      padRight(d.accountName, 30) +
+      padRight(d.costCenter || "-", 12) +
+      padLeft(fmt(d.kredit), 16)
+    );
+  }
+
+  push("-".repeat(W));
+  push(padRight("Total", 64) + padLeft(fmt(data.debet), 16));
+  push("=".repeat(W));
+  push(`Terbilang: ${data.terbilang} Rupiah`);
+  push("=".repeat(W));
+  push("");
+  push(padRight("Dibuat Oleh,", 26) + padRight("Diperiksa,", 27) + "Disetujui,");
+  push("");
+  push("");
+  push(padRight("(____________)", 26) + padRight("(____________)", 27) + "(____________)");
+  push(NL + NL + NL);
+
+  return cmds;
 }
