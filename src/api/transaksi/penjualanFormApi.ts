@@ -39,9 +39,25 @@ export interface PenjualanForm {
   noCard?: string;
   bankCard?: string;
   piutang?: number;
+  umPenjualan?: number;
+  umNomor?: string;
+  umNama?: string;
   dateline: string;
   pemesan: string;
   detail: PenjualanDetail[];
+}
+
+export interface UangMukaOption {
+  nomor: string;
+  tanggal: string;
+  keterangan: string;
+  rek: string;
+  rekNama: string;
+  cusKode: string;
+  cusNama: string;
+  nilai: number;
+  terpakai: number;
+  sisa: number;
 }
 
 export const penjualanFormApi = {
@@ -50,6 +66,13 @@ export const penjualanFormApi = {
 
   getBarang: (search: string) =>
     api.get("/transaksi/penjualan/form/barang", { params: { search } }).then((r) => r.data.data),
+
+  getUangMuka: (cusKode: string, search = "", excludeNomor = "") =>
+    api
+      .get("/transaksi/penjualan/form/uang-muka", {
+        params: { cusKode, search, excludeNomor },
+      })
+      .then((r) => r.data.data as UangMukaOption[]),
 
   getDetailForm: (nomor: string) =>
     api.get(`/transaksi/penjualan/form/form/${encodeURIComponent(nomor)}`).then((r) => r.data.data),

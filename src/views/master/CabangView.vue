@@ -63,6 +63,7 @@ const emptyForm = () => ({
   rekKas: null as string | null,
   rekPenjualan: null as string | null,
   rekPiutang: null as string | null,
+  rekUmPenjualan: null as string | null,
 });
 const form = ref(emptyForm());
 
@@ -72,6 +73,7 @@ const rekPersediaanOptions = computed(() => rekeningOptions.value.filter((r) => 
 const rekKasOptions = computed(() => rekeningOptions.value.filter((r) => r.kode?.startsWith("11.")));
 const rekPenjualanOptions = computed(() => rekeningOptions.value.filter((r) => r.kode?.startsWith("21.")));
 const rekPiutangOptions = computed(() => rekeningOptions.value.filter((r) => r.kode?.startsWith("14.")));
+const rekUmPenjualanOptions = computed(() => rekeningOptions.value.filter((r) => ["19.", "22."].some((p) => r.kode?.startsWith(p))));
 onMounted(async () => {
   try {
     rekeningOptions.value = await rekeningApi.getAll();
@@ -113,6 +115,7 @@ const openEdit = (item: Cabang) => {
     rekKas: item.rekKas || null,
     rekPenjualan: item.rekPenjualan || null,
     rekPiutang: item.rekPiutang || null,
+    rekUmPenjualan: (item as any).rekUmPenjualan || null,
   };
   errors.value = {};
   dialogTitle.value = "Ubah Cabang";
@@ -364,9 +367,32 @@ const handleDelete = async (item: Cabang) => {
           </div>
 
           <div class="f-row">
+            <label class="f-lbl">Akun Uang Muka PJ.</label>
+            <v-select
+              v-model="form.rekUmPenjualan"
+              :items="rekUmPenjualanOptions"
+              item-title="nama"
+              item-value="kode"
+              density="compact"
+              variant="outlined"
+              hide-details
+              clearable
+              :disabled="isSaving"
+              placeholder="Pilih akun uang muka penjualan"
+            >
+              <template #item="{ props, item }">
+                <v-list-item v-bind="props" :title="`${item.raw.kode} - ${item.raw.nama}`" />
+              </template>
+              <template #selection="{ item }">
+                <span class="text-caption">{{ item.raw.kode }} - {{ item.raw.nama }}</span>
+              </template>
+            </v-select>
+          </div>
+
+          <div class="f-row">
             <label class="f-lbl"></label>
             <span class="text-caption" style="color:#6b7280; font-size:10px;">
-              Akun yang tidak diisi akan memakai akun default (Kas: 11.002, Piutang: 14.001, Penjualan: 21.001, Persediaan: per grup barang / 17.004).
+              Akun yang tidak diisi akan memakai akun default (Kas: 11.002, Piutang: 14.001, Penjualan: 21.001, Persediaan: per grup barang / 17.004, Uang Muka PJ: 19.001).
             </span>
           </div>
 

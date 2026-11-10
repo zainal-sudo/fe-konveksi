@@ -892,6 +892,17 @@ const router = createRouter({
       },
     },
     {
+      path: "/laporan/buku-pembantu-um",
+      name: "LapBukuPembantuUm",
+      component: () => import("@/views/laporan/BukuPembantuUmView.vue"),
+      meta: {
+        layout: "DefaultLayout",
+        requiresAuth: true,
+        menuId: "34",
+        title: "Buku Pembantu UM Penjualan",
+      },
+    },
+    {
       path: "/laporan/hutang",
       name: "LapHutang",
       component: () => import("@/views/laporan/LaporanHutangView.vue"),
@@ -1027,6 +1038,7 @@ router.beforeEach((to) => {
       "/laporan/Persediaan",
       "/laporan/penjualan-item",
       "/laporan/harian",
+      "/laporan/buku-pembantu-um",
     ];
     const okPath = izinkanPrefix.some(
       (p) =>

@@ -76,6 +76,9 @@ const emptyForm = (): PenjualanForm => ({
   noCard: "",
   bankCard: "",
   piutang: 0,
+  umPenjualan: 0,
+  umNomor: "",
+  umNama: "",
   dateline: today,
   cusTop: 0,
   pemesan: "",
@@ -207,7 +210,8 @@ const searchBarang = async (query: string) => {
 
 // ── Pembayaran multi-jenis (pola kasir minimarket) ───────────────────
 // Total tagihan = amount (hasil calcTotal, termasuk PPN bila ada) + ongkir.
-// Jalur: cash (form.bayar) + voucher + card + piutang.
+// Jalur: cash (form.bayar) + voucher + card + piutang + uang muka (deposit
+// customer dari Penerimaan Lain-Lain, dipilih lewat tombol search).
 // Kembalian live = total semua jalur - total tagihan (dibatasi >= 0).
 // Kas masuk laci (dp) = cash - kembalian, min 0.
 const grandTotal = computed(() => (form.value.amount || 0) + (Number(form.value.ongkir) || 0));
@@ -216,7 +220,8 @@ const totalBayarJalan = computed(() => {
     (Number(form.value.bayar) || 0) +
     (Number(form.value.voucher) || 0) +
     (Number(form.value.card) || 0) +
-    (Number(form.value.piutang) || 0)
+    (Number(form.value.piutang) || 0) +
+    (Number(form.value.umPenjualan) || 0)
   );
 });
 const uangKembalian = computed(() => {
@@ -225,8 +230,8 @@ const uangKembalian = computed(() => {
 });
 const kasNeto = computed(() => Math.max(0, (Number(form.value.bayar) || 0) - uangKembalian.value));
 
-// ── Thousand separator untuk input pembayaran (cash/voucher/card/piutang) ──
-const PAY_KEYS = ["bayar", "voucher", "card", "piutang"] as const;
+// ── Thousand separator untuk input pembayaran (cash/voucher/card/piutang/uang muka) ──
+const PAY_KEYS = ["bayar", "voucher", "card", "piutang", "umPenjualan"] as const;
 type PayKey = (typeof PAY_KEYS)[number];
 
 const payDisplays = ref<Record<PayKey, string>>({
@@ -234,6 +239,7 @@ const payDisplays = ref<Record<PayKey, string>>({
   voucher: "",
   card: "",
   piutang: "",
+  umPenjualan: "",
 });
 
 const fmtNum = (v: number) => {
@@ -248,9 +254,58 @@ const onPayInput = (key: PayKey, e: Event) => {
   payDisplays.value[key] = fmtNum(num);
 };
 
+// ── Search Uang Muka (Penerimaan Lain-Lain) ──────────────────────────
+// Tombol search di panel PEMBAYARAN menampilkan deposit customer yang
+// belum habis dipakai, difilter sesuai customer nota yang dipilih.
+const showUangMukaModal = ref(false);
+const umOptions = ref<any[]>([]);
+const umLoading = ref(false);
+
+const searchUangMuka = async (query: string) => {
+  if (!form.value.cusKode) {
+    toast.warning("Pilih customer terlebih dahulu — uang muka difilter per customer.");
+    return;
+  }
+  umLoading.value = true;
+  try {
+    umOptions.value = await penjualanFormApi.getUangMuka(
+      form.value.cusKode,
+      query || "",
+      form.value.nomor || ""
+    );
+  } catch (e: any) {
+    umOptions.value = [];
+    toast.error(e.response?.data?.message || "Gagal memuat daftar uang muka.");
+  } finally {
+    umLoading.value = false;
+  }
+};
+
+const openUangMukaModal = () => {
+  if (!form.value.cusKode) {
+    toast.warning("Pilih customer terlebih dahulu — uang muka difilter per customer.");
+    return;
+  }
+  showUangMukaModal.value = true;
+  searchUangMuka("");
+};
+
+const selectUangMuka = (u: any) => {
+  if (!u) return;
+  const sisa = Number(u.sisa ?? u.nilai) || 0;
+  if (sisa <= 0) {
+    toast.warning(`Uang muka ${u.nomor} sudah habis dipakai.`);
+    return;
+  }
+  form.value.umNomor = u.nomor || "";
+  form.value.umNama = u.keterangan || u.rekNama || "";
+  form.value.umPenjualan = sisa;
+  showUangMukaModal.value = false;
+};
+
 // Sinkronkan tampilan saat data form dimuat (mode edit) atau direset
 watch(
-  () => [form.value.bayar, form.value.voucher, form.value.card, form.value.piutang],
+  () => [form.value.bayar, form.value.voucher, form.value.card, form.value.piutang, form.value.umPenjualan],
   () => {
     for (const k of PAY_KEYS) {
       payDisplays.value[k] = fmtNum(Number(form.value[k]) || 0);
@@ -269,7 +324,14 @@ const recalcDateline = () => {
 
 const selectCustomer = (cus: any) => {
   if (!cus) return;
-  form.value.cusKode = cus.kode || cus.Kode || cus.cusKode || "";
+  const newKode = cus.kode || cus.Kode || cus.cusKode || "";
+  // Uang muka deposit milik customer → ganti customer berarti lepas UM yang terpilih
+  if (form.value.umNomor && form.value.cusKode && form.value.cusKode !== newKode) {
+    form.value.umPenjualan = 0;
+    form.value.umNomor = "";
+    form.value.umNama = "";
+  }
+  form.value.cusKode = newKode;
   form.value.cusNama = cus.nama || cus.Nama || cus.cusNama || "";
   form.value.cusAlamat = cus.alamat || cus.Alamat || "";
   form.value.cusTelp = cus.telp || cus.Telp || "";
@@ -452,6 +514,17 @@ const resetForm = () => {
     const nama = (form.value.cusNama || "").toLowerCase();
     if (form.value.cusKode === "PU" || nama.includes("umum")) {
       toast.warning("Penjualan PIUTANG tidak boleh untuk customer UMUM. Pilih customer terlebih dahulu.");
+      return false;
+    }
+  }
+  if ((Number(form.value.umPenjualan) || 0) > 0) {
+    if (!form.value.umNomor) {
+      toast.warning("Nilai uang muka harus dipilih lewat tombol search UANG MUKA Penerimaan Lain-Lain.");
+      return false;
+    }
+    const nama = (form.value.cusNama || "").toLowerCase();
+    if (form.value.cusKode === "PU" || nama.includes("umum")) {
+      toast.warning("Pembayaran UANG MUKA tidak boleh untuk customer UMUM. Pilih customer terlebih dahulu.");
       return false;
     }
   }
@@ -997,6 +1070,22 @@ const fmtNumber = (v: number) => new Intl.NumberFormat("id-ID").format(v || 0);
             </div>
           </div>
 
+          <div class="pay-field">
+            <label class="um-lbl">5. UANG MUKA (PENERIMAAN LAIN-LAIN)</label>
+            <div class="pay-extra">
+              <div class="um-row">
+                <div class="pay-input-wrap wrap-um">
+                  <span class="pay-prefix">Rp</span>
+                  <input type="text" inputmode="numeric" :value="payDisplays.umPenjualan" readonly @click="openUangMukaModal" class="pay-input pay-inp-sm um-inp" placeholder="0" title="Nilai diisi otomatis dari uang muka yang dipilih" />
+                </div>
+                <button class="um-btn-search" type="button" title="Cari uang muka (Penerimaan Lain-Lain) milik customer ini" @click.stop="openUangMukaModal">
+                  <IconSearch :size="14" />
+                </button>
+              </div>
+              <input type="text" :value="form.umNama || form.umNomor" readonly class="pay-text-inp readonly-bg" :placeholder="form.umNomor ? 'Nomor deposit : ' + form.umNomor : 'Belum ada uang muka dipilih'" />
+            </div>
+          </div>
+
           <div class="pay-change-row" :class="{ 'pay-short': totalBayarJalan < grandTotal }">
             <span class="pay-change-lbl">KEMBALIAN</span>
             <span class="pay-change-val">Rp {{ fmtCurrency(uangKembalian) }}</span>
@@ -1068,6 +1157,34 @@ const fmtNumber = (v: number) => new Intl.NumberFormat("id-ID").format(v || 0);
       @select="selectCustomer"
       @search="searchCustomer"
     />
+
+    <SearchModal
+      v-model="showUangMukaModal"
+      title="Pilih Uang Muka (Penerimaan Lain-Lain)"
+      :columns="[
+        { key: 'nomor', title: 'NO. PENERIMAAN LAIN', width: '170px' },
+        { key: 'tanggal', title: 'TANGGAL', width: '110px' },
+        { key: 'rekNama', title: 'ACCOUNT' },
+        { key: 'keterangan', title: 'KETERANGAN' },
+        { key: 'nilai', title: 'NILAI', width: '110px', align: 'right' },
+        { key: 'terpakai', title: 'TERPAKAI', width: '110px', align: 'right' },
+        { key: 'sisa', title: 'SISA', width: '110px', align: 'right' },
+      ]"
+      :items="umOptions"
+      :loading="umLoading"
+      :server-search="true"
+      search-placeholder="Cari nomor penerimaan lain..."
+      :search-keys="['nomor', 'keterangan']"
+      item-key="nomor"
+      @select="selectUangMuka"
+      @search="searchUangMuka"
+    >
+      <template #toolbar>
+        <span class="text-caption text-grey">
+          Deposit uang muka milik customer <strong>{{ form.cusNama || form.cusKode }}</strong> yang belum habis dipakai
+        </span>
+      </template>
+    </SearchModal>
 
     <SearchModal
       v-model="showBarangModal"
@@ -1322,6 +1439,24 @@ const fmtNumber = (v: number) => new Intl.NumberFormat("id-ID").format(v || 0);
 .voucher-lbl { color: #1d4ed8; }
 .card-lbl { color: #7e22ce; }
 .piutang-lbl { color: #dc2626; }
+.um-lbl { color: #b45309; }
+.um-row { display: flex; gap: 4px; align-items: stretch; }
+.um-btn-search {
+  height: 34px;
+  width: 32px;
+  background: #b45309;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.um-btn-search:hover { background: #a34a08; }
+.um-inp { cursor: pointer; }
+.wrap-um .pay-input { background: #fffbeb; color: #b45309; }
+.wrap-um { border-color: #fcd34d; }
 .pay-extra { display: flex; flex-direction: column; gap: 4px; }
 .pay-extra-cols { display: flex; gap: 4px; }
 .pay-text-inp { flex: 1; min-width: 0; height: 34px; border: 1px solid #d1d5db; border-radius: 4px; padding: 0 6px; font-size: 11.5px; outline: none; }

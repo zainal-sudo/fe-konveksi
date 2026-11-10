@@ -24,20 +24,25 @@ body {
   margin: 0;
 }
 
-/* ── Scrollbar biru Finance ── */
+/* ── Scrollbar biru Finance (diperbesar) ── */
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 12px;  /* scrollbar vertical */
+  height: 12px; /* scrollbar horizontal */
 }
 ::-webkit-scrollbar-track {
-  background: transparent;
+  background: #edf1f7;
+  border: 1px solid #e2e8f0;
 }
 ::-webkit-scrollbar-thumb {
-  background: rgba(0, 0, 255, 0.3);
-  border-radius: 4px;
+  background: rgba(59, 89, 152, 0.55);
+  border-radius: 6px;
+  border: 2px solid #edf1f7;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(0, 0, 255, 0.55);
+  background: rgba(59, 89, 152, 0.85);
+}
+::-webkit-scrollbar-corner {
+  background: #edf1f7;
 }
 
 /* ── Vuetify overrides ── */

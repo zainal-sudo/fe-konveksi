@@ -8,6 +8,11 @@ import type {
   DaftarHutangRow,
   DaftarHutangDetail,
 } from "@/api/laporan/daftarHutangApi";
+import type {
+  UmRow,
+  UmCustomerSummary,
+  UmReportTotal,
+} from "@/api/laporan/bukuPembantuUmApi";
 import { userCellText } from "@/utils/kolomUser";
 
 
@@ -7306,4 +7311,162 @@ export const exportLhkSelection = async (
     type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
   });
   return await promptSaveAs(blob, `LHK_Selection_${periodeName(startDate, endDate)}.xlsx`);
+};
+
+// ── Buku Pembantu Uang Muka Penjualan ───────────────────────────────────
+export const exportBukuPembantuUm = async (opts: {
+  groups: { info: UmCustomerSummary; rows: UmRow[] }[];
+  total: UmReportTotal;
+  rekUm: string;
+  startDate: string;
+  endDate: string;
+  customer: string;
+}) => {
+  const wb = new ExcelJS.Workbook();
+  const ws = wb.addWorksheet("Buku Pembantu UM");
+
+  const borderAll: Partial<ExcelJS.Borders> = {
+    top: { style: "thin" },
+    left: { style: "thin" },
+    bottom: { style: "thin" },
+    right: { style: "thin" },
+  };
+  const headerFill: ExcelJS.Fill = {
+    type: "pattern",
+    pattern: "solid",
+    fgColor: { argb: "FF3B5998" },
+  };
+  const headerFont: Partial<ExcelJS.Font> = {
+    bold: true,
+    color: { argb: "FFFFFFFF" },
+    size: 10,
+  };
+  const groupFill: ExcelJS.Fill = {
+    type: "pattern",
+    pattern: "solid",
+    fgColor: { argb: "FFE8EDF5" },
+  };
+  const subFill: ExcelJS.Fill = {
+    type: "pattern",
+    pattern: "solid",
+    fgColor: { argb: "FFF1F1F9" },
+  };
+  const totalFill: ExcelJS.Fill = {
+    type: "pattern",
+    pattern: "solid",
+    fgColor: { argb: "FFDDE4F0" },
+  };
+
+  const setH = (cell: ExcelJS.Cell, val: string) => {
+    cell.value = val;
+    cell.font = headerFont;
+    cell.fill = headerFill;
+    cell.border = borderAll;
+    cell.alignment = { vertical: "middle", horizontal: "center" };
+  };
+  const setC = (
+    cell: ExcelJS.Cell,
+    val: any,
+    align: "left" | "center" | "right" = "left",
+    bold = false,
+  ) => {
+    cell.value = val;
+    cell.border = borderAll;
+    cell.font = { size: 10, bold };
+    cell.alignment = { vertical: "middle", horizontal: align };
+  };
+  const setN = (cell: ExcelJS.Cell, val: number, bold = false) => {
+    cell.value = Number(val) || 0;
+    cell.border = borderAll;
+    cell.font = { size: 10, bold };
+    cell.numFmt = "#,##0";
+    cell.alignment = { vertical: "middle", horizontal: "right" };
+  };
+
+  ws.mergeCells("A1:H1");
+  ws.getCell("A1").value = "Buku Pembantu Uang Muka Penjualan";
+  ws.getCell("A1").font = { bold: true, size: 12 };
+  ws.mergeCells("A2:H2");
+  ws.getCell("A2").value = `Periode : ${opts.startDate} s/d ${opts.endDate}  |  Customer : ${opts.customer}  |  Akun : ${opts.rekUm}`;
+  ws.getCell("A2").font = { size: 10 };
+  ws.addRow([]);
+
+  const cols = [
+    "Customer",
+    "Tanggal",
+    "Jenis",
+    "Nomor",
+    "Keterangan",
+    "Masuk",
+    "Pakai",
+    "Saldo",
+  ];
+  const hRow = ws.addRow(cols);
+  hRow.eachCell((cell, i) => setH(cell, cols[i - 1]));
+  hRow.height = 20;
+
+  for (const g of opts.groups) {
+    // Baris saldo awal
+    const awalRow = ws.addRow([]);
+    for (let c = 1; c <= 8; c++) {
+      awalRow.getCell(c).border = borderAll;
+      awalRow.getCell(c).fill = groupFill;
+    }
+    setC(awalRow.getCell(1), `${g.info.cusKode} - ${g.info.cusNama}`, "left", true);
+    setC(awalRow.getCell(5), "Saldo Awal");
+    setN(awalRow.getCell(8), g.info.saldoAwal, true);
+    awalRow.height = 16;
+
+    for (const r of g.rows) {
+      const row = ws.addRow([]);
+      setC(row.getCell(1), `${r.cusKode} - ${r.cusNama}`);
+      setC(row.getCell(2), r.tanggal, "center");
+      setC(row.getCell(3), r.jenis, "center");
+      setC(row.getCell(4), r.nomor);
+      setC(row.getCell(5), r.keterangan);
+      if (r.masuk) setN(row.getCell(6), r.masuk);
+      if (r.pakai) setN(row.getCell(7), r.pakai);
+      setN(row.getCell(8), r.saldo);
+      row.height = 16;
+    }
+
+    // Sub total per customer
+    const subRow = ws.addRow([]);
+    for (let c = 1; c <= 8; c++) {
+      subRow.getCell(c).border = borderAll;
+      subRow.getCell(c).fill = subFill;
+    }
+    setC(subRow.getCell(5), "Sub Total", "right", true);
+    setN(subRow.getCell(6), g.info.masuk, true);
+    setN(subRow.getCell(7), g.info.pakai, true);
+    setN(subRow.getCell(8), g.info.saldoAkhir, true);
+    subRow.height = 16;
+  }
+
+  // Total keseluruhan
+  const footRow = ws.addRow([]);
+  for (let c = 1; c <= 8; c++) {
+    footRow.getCell(c).border = borderAll;
+    footRow.getCell(c).fill = totalFill;
+  }
+  setC(footRow.getCell(5), "TOTAL", "right", true);
+  setN(footRow.getCell(6), opts.total.masuk, true);
+  setN(footRow.getCell(7), opts.total.pakai, true);
+  setN(footRow.getCell(8), opts.total.saldoAkhir, true);
+  footRow.height = 18;
+
+  ws.getColumn(1).width = 28;
+  ws.getColumn(2).width = 12;
+  ws.getColumn(3).width = 9;
+  ws.getColumn(4).width = 18;
+  ws.getColumn(5).width = 42;
+  ws.getColumn(6).width = 14;
+  ws.getColumn(7).width = 14;
+  ws.getColumn(8).width = 15;
+
+  const buf = await wb.xlsx.writeBuffer();
+  saveAs(
+    new Blob([buf]),
+    `BukuPembantuUM_${opts.startDate}_sd_${opts.endDate}.xlsx`,
+  );
 };

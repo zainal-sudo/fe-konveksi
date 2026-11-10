@@ -80,6 +80,9 @@ export const buildPaymentColumn = (data: any): PrintMoneyLine[] => {
       note: [data.noCard, data.bankCard].filter(Boolean).join(" - "),
     });
   if (piutang !== 0) lines.push({ label: "Piutang       :", value: piutang });
+  const umPenjualan = Number(data.umPenjualan || 0);
+  if (umPenjualan !== 0)
+    lines.push({ label: "Uang Muka     :", value: umPenjualan, note: data.umNomor || "" });
   lines.push({ label: "Kembalian     :", value: kembali });
   // Catatan: "Kas di Laci" sengaja TIDAK dicetak lagi di faktur —
   // pembayaran cash ditampilkan langsung (Tunai/Kembalian) saja.

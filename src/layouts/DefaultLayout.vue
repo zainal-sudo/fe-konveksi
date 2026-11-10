@@ -31,6 +31,7 @@ import {
   IconArrowsExchange,
   IconTransfer,
   IconTruckDelivery,
+  IconWallet,
 } from "@tabler/icons-vue";
 
 const router = useRouter();
@@ -380,6 +381,12 @@ const menus = [
         icon: IconList,
         route: "/laporan/laba-rugi",
         menuId: "32",
+      },
+      {
+        title: "Buku Pembantu UM",
+        icon: IconWallet,
+        route: "/laporan/buku-pembantu-um",
+        menuId: "34",
       }
     ],
   },
@@ -429,6 +436,7 @@ const ROUTE_CABANG_DIIZINKAN = [
   "/laporan/persediaan",
   "/laporan/penjualan-item",
   "/laporan/harian",
+  "/laporan/buku-pembantu-um",
 ];
 
 const menuBolehUntukCabang = (menu: any) => {
