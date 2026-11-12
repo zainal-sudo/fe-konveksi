@@ -12,6 +12,7 @@ import {
   IconSearch,
   IconPlus,
   IconTrash,
+  IconDownload,
 } from "@tabler/icons-vue";
 import { penjualanFormApi, type PenjualanForm, type PenjualanDetail } from "@/api/transaksi/penjualanFormApi";
 import { penjualanApi } from "@/api/transaksi/penjualanApi";
@@ -79,6 +80,7 @@ const emptyForm = (): PenjualanForm => ({
   umPenjualan: 0,
   umNomor: "",
   umNama: "",
+  umDetail: [] as { jurNo: string; nilai: number }[],
   dateline: today,
   cusTop: 0,
   pemesan: "",
@@ -300,7 +302,59 @@ const selectUangMuka = (u: any) => {
   form.value.umNomor = u.nomor || "";
   form.value.umNama = u.keterangan || u.rekNama || "";
   form.value.umPenjualan = sisa;
+  form.value.umDetail = [{ jurNo: u.nomor, nilai: sisa }];
   showUangMukaModal.value = false;
+};
+
+// ── GET DP: alokasi otomatis deposit customer (FIFO) ─────────────────
+// Satu klik mengambil semua deposit customer yang masih punya sisa,
+// urut dari yang terlama, sampai menutup sisa tagihan yang belum
+// ditutup jalur pembayaran lain. Bisa memotong beberapa deposit sekaligus.
+const umGetLoading = ref(false);
+
+const getDp = async () => {
+  if (!form.value.cusKode) {
+    toast.warning("Pilih customer terlebih dahulu — DP difilter per customer.");
+    return;
+  }
+  // Target = sisa tagihan yang belum ditutup tunai/voucher/card/piutang
+  const other =
+    (Number(form.value.bayar) || 0) +
+    (Number(form.value.voucher) || 0) +
+    (Number(form.value.card) || 0) +
+    (Number(form.value.piutang) || 0);
+  const target = Math.max(0, grandTotal.value - other);
+  umGetLoading.value = true;
+  try {
+    const res = await penjualanFormApi.getCustomerDp(
+      form.value.cusKode,
+      target,
+      form.value.nomor || ""
+    );
+    const alok = res?.alokasi || [];
+    if (alok.length === 0) {
+      toast.warning(
+        `Customer ${form.value.cusNama || form.value.cusKode} tidak memiliki saldo uang muka.`
+      );
+      return;
+    }
+    form.value.umDetail = alok.map((a) => ({ jurNo: a.nomor, nilai: a.alokasi }));
+    form.value.umPenjualan = alok.reduce((s, a) => s + a.alokasi, 0);
+    form.value.umNomor = alok[0].nomor;
+    form.value.umNama = alok
+      .map((a) => `${a.nomor} (${fmtCurrency(a.alokasi)})`)
+      .join(" + ");
+    if ((Number(res?.kurang) || 0) > 0) {
+      toast.info(
+        `Saldo uang muka kurang ${fmtCurrency(res.kurang)} dari sisa tagihan — ` +
+          `sisanya harus dibayar tunai / voucher / card / piutang.`
+      );
+    }
+  } catch (e: any) {
+    toast.error(e.response?.data?.message || "Gagal mengambil data DP customer.");
+  } finally {
+    umGetLoading.value = false;
+  }
 };
 
 // Sinkronkan tampilan saat data form dimuat (mode edit) atau direset
@@ -330,6 +384,7 @@ const selectCustomer = (cus: any) => {
     form.value.umPenjualan = 0;
     form.value.umNomor = "";
     form.value.umNama = "";
+    form.value.umDetail = [];
   }
   form.value.cusKode = newKode;
   form.value.cusNama = cus.nama || cus.Nama || cus.cusNama || "";
@@ -460,6 +515,12 @@ const loadData = async () => {
     form.value.isEdit = true;
     const res = await penjualanFormApi.getDetailForm(decodeURIComponent(nomor));
     Object.assign(form.value, res);
+    // Rebuild teks breakdown DP dari detail alokasi (mode edit)
+    if ((form.value.umDetail?.length || 0) > 0) {
+      form.value.umNama = form.value
+        .umDetail!.map((u) => `${u.jurNo} (${fmtCurrency(u.nilai)})`)
+        .join(" + ");
+    }
     calcTotal();
   } catch (e: any) {
     toast.error(e.response?.data?.message || "Gagal mengambil data penjualan.");
@@ -1071,18 +1132,23 @@ const fmtNumber = (v: number) => new Intl.NumberFormat("id-ID").format(v || 0);
           </div>
 
           <div class="pay-field">
-            <label class="um-lbl">5. UANG MUKA (PENERIMAAN LAIN-LAIN)</label>
+            <label class="um-lbl">5. UANG MUKA / DP</label>
             <div class="pay-extra">
               <div class="um-row">
                 <div class="pay-input-wrap wrap-um">
                   <span class="pay-prefix">Rp</span>
                   <input type="text" inputmode="numeric" :value="payDisplays.umPenjualan" readonly @click="openUangMukaModal" class="pay-input pay-inp-sm um-inp" placeholder="0" title="Nilai diisi otomatis dari uang muka yang dipilih" />
                 </div>
+                <button class="um-btn-get" type="button" :disabled="umGetLoading" :title="'Ambil otomatis saldo uang muka (DP) customer — bisa beberapa deposit sekaligus'" @click.stop="getDp">
+                  <IconDownload v-if="!umGetLoading" :size="14" />
+                  <span v-else class="um-btn-spin"></span>
+                  <span class="um-btn-txt">GET DP</span>
+                </button>
                 <button class="um-btn-search" type="button" title="Cari uang muka (Penerimaan Lain-Lain) milik customer ini" @click.stop="openUangMukaModal">
                   <IconSearch :size="14" />
                 </button>
               </div>
-              <input type="text" :value="form.umNama || form.umNomor" readonly class="pay-text-inp readonly-bg" :placeholder="form.umNomor ? 'Nomor deposit : ' + form.umNomor : 'Belum ada uang muka dipilih'" />
+              <input type="text" :value="form.umNama || form.umNomor" readonly class="pay-text-inp readonly-bg" :placeholder="form.umNomor ? 'Deposit : ' + form.umNomor : 'Belum ada uang muka dipilih'" />
             </div>
           </div>
 
@@ -1454,6 +1520,32 @@ const fmtNumber = (v: number) => new Intl.NumberFormat("id-ID").format(v || 0);
   flex-shrink: 0;
 }
 .um-btn-search:hover { background: #a34a08; }
+.um-btn-get {
+  height: 34px;
+  padding: 0 10px;
+  background: #15803d;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.4px;
+  flex-shrink: 0;
+}
+.um-btn-get:hover { background: #166534; }
+.um-btn-get:disabled { opacity: 0.7; cursor: wait; }
+.um-btn-spin {
+  width: 12px;
+  height: 12px;
+  border: 2px solid rgba(255, 255, 255, 0.4);
+  border-top-color: white;
+  border-radius: 50%;
+  animation: um-spin 0.8s linear infinite;
+}
+@keyframes um-spin { to { transform: rotate(360deg); } }
 .um-inp { cursor: pointer; }
 .wrap-um .pay-input { background: #fffbeb; color: #b45309; }
 .wrap-um { border-color: #fcd34d; }
