@@ -495,12 +495,13 @@ const pageStart = computed(() =>
 const pageEnd = computed(() =>
   Math.min(currentPage.value * perPage.value, totalItems.value),
 );
-const pagedItems = computed(() =>
-  filteredItems.value.slice(
+const pagedItems = computed(() => {
+  if (perPage.value >= 99999) return filteredItems.value;
+  return filteredItems.value.slice(
     (currentPage.value - 1) * perPage.value,
     currentPage.value * perPage.value,
-  ),
-);
+  );
+});
 const visiblePages = computed(() => {
   const total = totalPages.value,
     cur = currentPage.value;
@@ -951,15 +952,15 @@ watch(
         <v-spacer />
         <div class="per-page-wrap">
           <span class="page-info">Per hal.</span>
-          <select
-            v-model="perPage"
-            class="per-page-select"
-            @change="currentPage = 1"
-          >
-            <option v-for="n in [25, 50, 100, 200]" :key="n" :value="n">
-              {{ n }}
-            </option>
-          </select>
+           <select
+             v-model="perPage"
+             class="per-page-select"
+             @change="currentPage = 1"
+           >
+             <option v-for="n in [25, 50, 100, 200, 500, 1000, 99999]" :key="n" :value="n">
+               {{ n === 99999 ? 'Semua' : n }}
+             </option>
+           </select>
         </div>
       </div>
     </div>
