@@ -1038,6 +1038,7 @@ router.beforeEach((to) => {
       "/laporan/Persediaan",
       "/laporan/penjualan-item",
       "/laporan/harian",
+      "/laporan/list-jurnal",
       "/laporan/buku-pembantu-um",
     ];
     const okPath = izinkanPrefix.some(

@@ -187,6 +187,7 @@ const detailCols: ExportColumn[] = [
   { key: "Debet", title: "Debet", width: 16, numFmt: "#,##0" },
   { key: "Kredit", title: "Kredit", width: 16, numFmt: "#,##0" },
   { key: "CostCenter", title: "Cost Center", width: 15 },
+  { key: "Customer", title: "Customer", width: 25 },
 ];
 
 const doExportHeader = () => {
@@ -309,10 +310,11 @@ const doExportDetail = async () => {
             <tr>
               <th style="width: 80px">Nomor</th>
               <th style="width: 80px">Account</th>
-              <th style="min-width: 200px">Nama Account</th>
-              <th style="width: 100px" class="tr">Debet</th>
-              <th style="width: 100px" class="tr">Kredit</th>
-              <th style="width: 120px">Cost Center</th>
+              <th style="min-width: 180px">Nama Account</th>
+              <th style="width: 90px" class="tr">Debet</th>
+              <th style="width: 90px" class="tr">Kredit</th>
+              <th style="width: 100px">Cost Center</th>
+              <th style="min-width: 150px">Customer</th>
             </tr>
           </thead>
           <tbody>
@@ -323,9 +325,10 @@ const doExportDetail = async () => {
               <td class="tr">{{ fmt(d.Debet) }}</td>
               <td class="tr">{{ fmt(d.Kredit) }}</td>
               <td>{{ d.CostCenter }}</td>
+              <td>{{ d.Customer }}</td>
             </tr>
             <tr v-if="!detailMap[item.Nomor]?.length">
-              <td colspan="6" class="empty-td">Tidak ada detail.</td>
+              <td colspan="7" class="empty-td">Tidak ada detail.</td>
             </tr>
           </tbody>
         </table>

@@ -15,6 +15,7 @@ export interface PenerimaanLainDetailRow {
   Debet: number;
   Kredit: number;
   CostCenter: string;
+  Customer: string;
 }
 
 export interface PenerimaanLainPrintData {

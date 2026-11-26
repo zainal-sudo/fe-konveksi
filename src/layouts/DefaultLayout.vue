@@ -436,6 +436,7 @@ const ROUTE_CABANG_DIIZINKAN = [
   "/laporan/persediaan",
   "/laporan/penjualan-item",
   "/laporan/harian",
+  "/laporan/list-jurnal",
   "/laporan/buku-pembantu-um",
 ];
 

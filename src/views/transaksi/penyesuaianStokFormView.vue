@@ -335,7 +335,20 @@ const confirmSave = async () => {
 
 const confirmCancel = () => {
   showCancelDialog.value = false;
-  router.push({ name: "penyesuaianStokBrowse" });
+  form.value = {
+    isEdit: false,
+    nomor: "",
+    tanggal: todayLocal(),
+    gdgKode: "",
+    gdgNama: "",
+    keterangan: "",
+    idbatch: "",
+    expired: "",
+    produksi: "",
+    memo: "",
+    detail: [],
+  };
+  toast.info("Inputan telah direset.");
 };
 
 const confirmClose = async () => {
@@ -661,21 +674,21 @@ onMounted(() => loadData());
           Batalkan
         </v-card-title>
         <v-card-text class="pa-4 text-body-2">
-          Keluar dari halaman ini? Perubahan yang belum disimpan akan hilang.
+          Reset form penyesuaian stok? Semua inputan dan daftar barang yang belum tersimpan akan dikosongkan.
         </v-card-text>
         <v-card-actions class="pa-2 bg-grey-lighten-4 justify-end">
           <v-btn
             size="small"
             variant="outlined"
             @click="showCancelDialog = false"
-            >Kembali</v-btn
+            >Batal</v-btn
           >
           <v-btn
             size="small"
             color="error"
             variant="flat"
             @click="confirmCancel"
-            >Ya, Keluar</v-btn
+            >Ya, Reset</v-btn
           >
         </v-card-actions>
       </v-card>
