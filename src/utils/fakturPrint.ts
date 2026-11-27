@@ -13,11 +13,16 @@ export const PAGE_FILL = LINES_PER_PAGE - (10 + DATA_PER_PAGE + 1);
 export const totalW = 110;
 export const colNo = 3, colKode = 11, colNama = 40, colSat = 7, colQty = 9, colDisc = 8, colHrg = 12, colTotal = 13;
 
-export const padRight = (str: string, len: number): string => {
-  return str.length >= len ? str.substring(0, len) : str + " ".repeat(len - str.length);
+// Paksa jadi string dulu: nilai seperti kode barang bisa datang dari DB
+// sebagai NUMBER, dan `number.length` = undefined sehingga padding gagal
+// (kolom jadi tidak sejajar dengan header).
+export const padRight = (str: string | number, len: number): string => {
+  const s = String(str ?? "");
+  return s.length >= len ? s.substring(0, len) : s + " ".repeat(len - s.length);
 };
-export const padLeft = (str: string, len: number): string => {
-  return str.length >= len ? str.substring(0, len) : " ".repeat(len - str.length) + str;
+export const padLeft = (str: string | number, len: number): string => {
+  const s = String(str ?? "");
+  return s.length >= len ? s.substring(0, len) : " ".repeat(len - s.length) + s;
 };
 export const fmtFloat = (v: number) => new Intl.NumberFormat("en-US", {
   minimumFractionDigits: 2,
