@@ -30,6 +30,7 @@ import {
   IconShoppingCart,
   IconCash,
   IconCoin,
+  IconCategory,
 } from "@tabler/icons-vue";
 import PageLayout from "@/components/PageLayout.vue";
 
@@ -105,8 +106,12 @@ const isSalesLoading = ref(true);
 const salesCabangFilter = ref<string>("");
 const salesBarRef = ref<HTMLCanvasElement | null>(null);
 const salesDonutRef = ref<HTMLCanvasElement | null>(null);
+const salesKategoriRef = ref<HTMLCanvasElement | null>(null);
+const salesCabangChartRef = ref<HTMLCanvasElement | null>(null);
 let salesBarChart: any = null;
 let salesDonutChart: any = null;
+let salesKategoriChart: any = null;
+let salesCabangChart: any = null;
 
 const loadSales = async () => {
   isSalesLoading.value = true;
@@ -206,37 +211,76 @@ const renderSalesCharts = () => {
       },
     });
   }
+  if (salesKategoriRef.value) {
+    salesKategoriChart?.destroy();
+    const kat = s.perKategori || [];
+    salesKategoriChart = new Chart(salesKategoriRef.value, {
+      type: "bar",
+      data: {
+        labels: kat.map((item) => item.kategori),
+        datasets: [
+          {
+            label: "Nilai Penjualan (Rp)",
+            data: kat.map((item) => item.nilai),
+            backgroundColor: "#2e7d32",
+            borderRadius: 4,
+            maxBarThickness: 28,
+          },
+        ],
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { display: false } },
+        scales: {
+          y: {
+            ticks: {
+              callback: (v) => fmtCompact(Number(v)),
+              font: { size: 10 },
+            },
+            grid: { color: "rgba(0,0,0,0.05)" },
+          },
+          x: { grid: { display: false }, ticks: { font: { size: 10 } } },
+        },
+      },
+    });
+  }
+  if (salesCabangChartRef.value && s.isPusat) {
+    salesCabangChart?.destroy();
+    const cbg = s.perCabang || [];
+    salesCabangChart = new Chart(salesCabangChartRef.value, {
+      type: "bar",
+      data: {
+        labels: cbg.map((item) => `${item.cabang} - ${item.nama}`),
+        datasets: [
+          {
+            label: "Penjualan Cabang (Rp)",
+            data: cbg.map((item) => item.bulanIni),
+            backgroundColor: "#ef6c00",
+            borderRadius: 4,
+            maxBarThickness: 28,
+          },
+        ],
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { display: false } },
+        scales: {
+          y: {
+            ticks: {
+              callback: (v) => fmtCompact(Number(v)),
+              font: { size: 10 },
+            },
+            grid: { color: "rgba(0,0,0,0.05)" },
+          },
+          x: { grid: { display: false }, ticks: { font: { size: 10 } } },
+        },
+      },
+    });
+  }
 };
 
-// Chart data — proporsi tugas
-const chartBars = computed(() => {
-  const bars = [];
-  if (canViewKasbon.value)
-    bars.push({
-      label: "Kasbon",
-      count: summaryData.value.kasbon.count,
-      color: "#ef5350",
-    });
-  if (canViewTransfer.value)
-    bars.push({
-      label: "Transfer",
-      count: summaryData.value.transfer.count,
-      color: "#ef6c00",
-    });
-  if (canViewSetoran.value)
-    bars.push({
-      label: "Setoran",
-      count: summaryData.value.setoran.count,
-      color: "#1565c0",
-    });
-
-  const total = bars.reduce((s, b) => s + b.count, 0);
-  if (!total) return [];
-  return bars.map((b) => ({
-    ...b,
-    pct: Math.round((b.count / total) * 100),
-  }));
-});
 </script>
 
 <template>
@@ -395,13 +439,27 @@ const chartBars = computed(() => {
           </div>
         </div>
 
-        <!-- Chart harian + komposisi -->
-        <div class="sales-grid">
+        <!-- Chart harian + kategori + cabang + pembayaran -->
+        <div class="sales-grid" style="grid-template-columns: repeat(2, 1fr); margin-bottom: 12px;">
           <div class="sales-card">
             <div class="sales-card-title">Penjualan Harian (Bulan Ini)</div>
             <div class="chart-box">
               <canvas ref="salesBarRef"></canvas>
               <div v-if="!salesData.harian.length" class="chart-empty">Belum ada penjualan bulan ini</div>
+            </div>
+          </div>
+          <div class="sales-card">
+            <div class="sales-card-title">Penjualan by Kategori</div>
+            <div class="chart-box">
+              <canvas ref="salesKategoriRef"></canvas>
+              <div v-if="!salesData.perKategori?.length" class="chart-empty">Belum ada data kategori</div>
+            </div>
+          </div>
+          <div v-if="salesData.isPusat" class="sales-card">
+            <div class="sales-card-title">Penjualan by Cabang</div>
+            <div class="chart-box">
+              <canvas ref="salesCabangChartRef"></canvas>
+              <div v-if="!salesData.perCabang?.length" class="chart-empty">Belum ada data cabang</div>
             </div>
           </div>
           <div class="sales-card">
@@ -475,238 +533,6 @@ const chartBars = computed(() => {
           <div v-if="!salesData.terbaru.length" class="row-empty">Tidak ada transaksi</div>
         </div>
       </template>
-
-      <!-- ── Tugas Menunggu ── -->
-      <h3 class="section-title">
-        <IconAlertCircle :size="14" style="color: #c62828" />
-        Tugas Menunggu
-      </h3>
-      <div class="task-grid">
-        <!-- Kasbon -->
-        <div
-          v-if="canViewKasbon"
-          class="task-card task-red"
-          @click="
-            router.push({
-              path: '/transaksi/uang-muka',
-              query: { filter: 'pending' },
-            })
-          "
-        >
-          <div class="task-top">
-            <div class="task-icon-wrap red">
-              <IconAlertCircle :size="20" />
-            </div>
-            <IconChevronRight :size="14" class="task-arrow" />
-          </div>
-          <div class="task-count">
-            <span v-if="isSummaryLoading">—</span>
-            <span v-else>{{ summaryData.kasbon.count }}</span>
-          </div>
-          <div class="task-label">Kasbon Belum Selesai</div>
-          <div class="task-sub">
-            <span v-if="!isSummaryLoading"
-              >Rp {{ fmtCompact(summaryData.kasbon.total) }}</span
-            >
-          </div>
-        </div>
-
-        <!-- Transfer -->
-        <div
-          v-if="canViewTransfer"
-          class="task-card task-orange"
-          @click="
-            router.push({
-              path: '/transaksi/pengajuan-transfer',
-              query: { filter: 'pending' },
-            })
-          "
-        >
-          <div class="task-top">
-            <div class="task-icon-wrap orange">
-              <IconClock :size="20" />
-            </div>
-            <IconChevronRight :size="14" class="task-arrow" />
-          </div>
-          <div class="task-count">
-            <span v-if="isSummaryLoading">—</span>
-            <span v-else>{{ summaryData.transfer.count }}</span>
-          </div>
-          <div class="task-label">Transfer Menunggu</div>
-          <div class="task-sub">
-            <span v-if="!isSummaryLoading"
-              >Rp {{ fmtCompact(summaryData.transfer.total) }}</span
-            >
-          </div>
-        </div>
-
-        <!-- Setoran -->
-        <div
-          v-if="canViewSetoran"
-          class="task-card task-blue"
-          @click="
-            router.push({
-              path: '/transaksi/terima-setoran',
-              query: { filter: 'pending' },
-            })
-          "
-        >
-          <div class="task-top">
-            <div class="task-icon-wrap blue">
-              <IconReceipt :size="20" />
-            </div>
-            <IconChevronRight :size="14" class="task-arrow" />
-          </div>
-          <div class="task-count">
-            <span v-if="isSummaryLoading">—</span>
-            <span v-else>{{ summaryData.setoran.count }}</span>
-          </div>
-          <div class="task-label">Setoran Belum Verifikasi</div>
-          <div class="task-sub">Klik untuk verifikasi</div>
-        </div>
-
-        <!-- Rekonsiliasi -->
-        <div
-          class="task-card"
-          :class="
-            summaryData.rekon?.selisihCount > 0 ? 'task-red' : 'task-green'
-          "
-          @click="router.push('/laporan/rekonsiliasi-bank')"
-        >
-          <div class="task-top">
-            <div
-              class="task-icon-wrap"
-              :class="summaryData.rekon?.selisihCount > 0 ? 'red' : 'green'"
-            >
-              <IconArrowsExchange :size="20" />
-            </div>
-            <IconChevronRight :size="14" class="task-arrow" />
-          </div>
-          <div class="task-count">
-            <span v-if="isSummaryLoading">—</span>
-            <span v-else>{{ summaryData.rekon?.selisihCount ?? 0 }}</span>
-          </div>
-          <div class="task-label">Rekonsiliasi Selisih</div>
-          <div class="task-sub">Bulan ini</div>
-        </div>
-
-        <!-- Stok Negatif -->
-        <div
-          class="task-card"
-          :class="
-            summaryData.stok?.negativeCount > 0 ? 'task-orange' : 'task-green'
-          "
-          @click="router.push('/laporan/stok-finance')"
-        >
-          <div class="task-top">
-            <div
-              class="task-icon-wrap"
-              :class="summaryData.stok?.negativeCount > 0 ? 'orange' : 'green'"
-            >
-              <IconList :size="20" />
-            </div>
-            <IconChevronRight :size="14" class="task-arrow" />
-          </div>
-          <div class="task-count">
-            <span v-if="isSummaryLoading">—</span>
-            <span v-else>{{ summaryData.stok?.negativeCount ?? 0 }}</span>
-          </div>
-          <div class="task-label">Stok Finance Negatif</div>
-          <div class="task-sub">
-            {{
-              summaryData.stok?.negativeCount > 0
-                ? "Perlu perhatian"
-                : "Semua normal"
-            }}
-          </div>
-        </div>
-
-        <!-- Voucher Belum PT -->
-        <div
-          v-if="canViewVoucher"
-          class="task-card"
-          :class="
-            summaryData.voucherPt?.count > 0 ? 'task-orange' : 'task-green'
-          "
-          @click="
-            router.push({
-              path: '/transaksi/voucher-pembayaran',
-              query: { filter: 'pending' },
-            })
-          "
-        >
-          <div class="task-top">
-            <div
-              class="task-icon-wrap"
-              :class="summaryData.voucherPt?.count > 0 ? 'orange' : 'green'"
-            >
-              <IconReceipt2 :size="20" />
-            </div>
-            <IconChevronRight :size="14" class="task-arrow" />
-          </div>
-          <div class="task-count">
-            <span v-if="isSummaryLoading">—</span>
-            <span v-else>{{ summaryData.voucherPt?.count ?? 0 }}</span>
-          </div>
-          <div class="task-label">Voucher Belum PT</div>
-          <div class="task-sub">
-            <span v-if="!isSummaryLoading">
-              Rp {{ fmtCompact(summaryData.voucherPt?.total ?? 0) }}
-            </span>
-          </div>
-        </div>
-
-        <!-- Daftar Hutang Belum Terbayar -->
-        <div
-          v-if="canViewVoucher"
-          class="task-card"
-          :class="summaryData.hutang?.count > 0 ? 'task-red' : 'task-green'"
-          @click="router.push('/laporan/daftar-hutang')"
-        >
-          <div class="task-top">
-            <div
-              class="task-icon-wrap"
-              :class="summaryData.hutang?.count > 0 ? 'red' : 'green'"
-            >
-              <IconFileInvoice :size="20" />
-            </div>
-            <IconChevronRight :size="14" class="task-arrow" />
-          </div>
-          <div class="task-count">
-            <span v-if="isSummaryLoading">—</span>
-            <span v-else>{{ summaryData.hutang?.count ?? 0 }}</span>
-          </div>
-          <div class="task-label">Hutang Belum Lunas</div>
-          <div class="task-sub">
-            <span v-if="!isSummaryLoading">
-              Rp {{ fmtCompact(summaryData.hutang?.total ?? 0) }}
-            </span>
-          </div>
-        </div>
-      </div>
-
-      <!-- ── Chart proporsi tugas ── -->
-      <div v-if="!isSummaryLoading && chartBars.length" class="chart-section">
-        <h3 class="section-title">
-          <IconTrendingUp :size="14" style="color: #3B5998" />
-          Proporsi Tugas Menunggu
-        </h3>
-        <div class="bar-chart-wrap">
-          <div v-for="bar in chartBars" :key="bar.label" class="bar-row">
-            <div class="bar-lbl">{{ bar.label }}</div>
-            <div class="bar-track">
-              <div
-                class="bar-fill"
-                :style="{ width: bar.pct + '%', background: bar.color }"
-              />
-            </div>
-            <div class="bar-info">
-              <span class="bar-count">{{ bar.count }}</span>
-              <span class="bar-pct">{{ bar.pct }}%</span>
-            </div>
-          </div>
-        </div>
-      </div>
 
       <!-- ── Aksi Cepat ── -->
       <h3 class="section-title" style="margin-top: 28px">
@@ -1203,9 +1029,9 @@ const chartBars = computed(() => {
   gap: 12px;
   margin-bottom: 12px;
 }
-@media (max-width: 900px) {
+@media (max-width: 1100px) {
   .sales-grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: 1fr !important;
   }
 }
 .sales-grid3 {
@@ -1249,6 +1075,7 @@ const chartBars = computed(() => {
 
 .row-item {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
   gap: 8px;

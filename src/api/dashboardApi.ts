@@ -42,6 +42,11 @@ export interface SalesWidget {
     voucher: number;
     piutang: number;
   };
+  perKategori: {
+    kategori: string;
+    nilai: number;
+    qty: number;
+  }[];
   piutang: {
     nota: number;
     total: number;
