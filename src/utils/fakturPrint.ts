@@ -11,7 +11,7 @@ export const DATA_PER_PAGE = 14;
 export const PAGE_FILL = LINES_PER_PAGE - (10 + DATA_PER_PAGE + 1);
 // Lebar kertas dipersempit (130 → 110 karakter) supaya tidak jmpol.
 export const totalW = 110;
-export const colNo = 3, colKode = 11, colNama = 30, colSat = 8, colQty = 9, colDisc = 8, colHrg = 12, colTotal = 13;
+export const colNo = 3, colKode = 11, colNama = 40, colSat = 7, colQty = 9, colDisc = 8, colHrg = 12, colTotal = 13;
 
 export const padRight = (str: string, len: number): string => {
   return str.length >= len ? str.substring(0, len) : str + " ".repeat(len - str.length);
