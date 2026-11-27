@@ -7,6 +7,7 @@ export interface Gudang {
   keterangan: string;
   cabang: string;
   cabangNama?: string;
+  rekPersediaan?: string | null;
 }
 
 export interface CabangOption {
@@ -30,6 +31,7 @@ export const gudangApi = {
     penanggungjawab: string;
     keterangan: string;
     cabang: string;
+    rekPersediaan?: string | null;
   }) => {
     const { data } = await api.post("/master/gudang/save", payload);
     return data;

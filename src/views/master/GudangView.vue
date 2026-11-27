@@ -1,10 +1,11 @@
 <script setup lang="ts">
-import { ref } from "vue";
+import { ref, computed, onMounted } from "vue";
 import { useToast } from "vue-toastification";
 import { IconBuildingWarehouse, IconDownload } from "@tabler/icons-vue";
 import BaseBrowse from "@/components/BaseBrowse.vue";
 import { useBrowse } from "@/composables/useBrowse";
 import { gudangApi, type Gudang } from "@/api/master/gudangApi";
+import { rekeningApi, type Rekening } from "@/api/master/rekeningApi";
 import { exportToExcel } from "@/utils/exportExcel";
 
 const MENU_ID = "16"; // Pastikan ID ini sesuai di database
@@ -25,6 +26,7 @@ const headers = [
   { title: "Kode", key: "kode", width: "100px", align: "center" },
   { title: "Nama Gudang", key: "nama", minWidth: "200px" },
   { title: "Cabang", key: "cabangNama", width: "160px" },
+  { title: "Akun Persediaan", key: "rekPersediaan", width: "120px", align: "center" },
   { title: "Penanggung Jawab", key: "penanggungjawab", minWidth: "150px" },
   { title: "Keterangan", key: "keterangan", minWidth: "200px" },
 ];
@@ -42,6 +44,7 @@ const exportExcelData = () => {
       { header: "Kode", key: "kode", width: 12, align: "center" },
       { header: "Nama Gudang", key: "nama", width: 30 },
       { header: "Cabang", key: "cabangNama", width: 22 },
+      { header: "Akun Persediaan", key: "rekPersediaan", width: 18, align: "center" },
       { header: "Penanggung Jawab", key: "penanggungjawab", width: 24 },
       { header: "Keterangan", key: "keterangan", width: 30 },
     ],
@@ -54,7 +57,10 @@ const dialog = ref(false);
 const dialogTitle = ref("");
 const isSaving = ref(false);
 
-const emptyForm = () => ({ isEdit: false, kode: "", nama: "", penanggungjawab: "", keterangan: "", cabang: "00" });
+const emptyForm = () => ({
+  isEdit: false, kode: "", nama: "", penanggungjawab: "", keterangan: "",
+  cabang: "00", rekPersediaan: null as string | null,
+});
 const form = ref(emptyForm());
 
 // Cabang untuk dropdown (gudang adalah anak dari cabang)
@@ -67,6 +73,19 @@ const loadCabang = async () => {
   }
 };
 loadCabang();
+
+// ── Opsi akun persediaan (trekening, prefix 17.) ──────────────────────
+const rekeningOptions = ref<Rekening[]>([]);
+const rekPersediaanOptions = computed(() =>
+  rekeningOptions.value.filter((r) => r.kode?.startsWith("17."))
+);
+onMounted(async () => {
+  try {
+    rekeningOptions.value = await rekeningApi.getAll();
+  } catch {
+    /* dropdown kosong; master tetap bisa disimpan */
+  }
+});
 
 // ── Validasi Form ─────────────────────────────────────────────────────
 const errors = ref<{ kode?: string; nama?: string }>({});
@@ -95,6 +114,7 @@ const openEdit = (item: Gudang) => {
     penanggungjawab: item.penanggungjawab,
     keterangan: item.keterangan,
     cabang: item.cabang || "00",
+    rekPersediaan: item.rekPersediaan || null,
   };
   errors.value = {};
   dialogTitle.value = "Ubah Gudang";
@@ -194,6 +214,29 @@ const handleDelete = async (item: Gudang) => {
                 {{ c.kode }} - {{ c.nama }}
               </option>
             </select>
+          </div>
+
+          <div class="f-row">
+            <label class="f-lbl">Akun Persediaan</label>
+            <v-select
+              v-model="form.rekPersediaan"
+              :items="rekPersediaanOptions"
+              item-title="nama"
+              item-value="kode"
+              density="compact"
+              variant="outlined"
+              hide-details
+              clearable
+              :disabled="isSaving"
+              placeholder="Pilih akun persediaan gudang"
+            >
+              <template #item="{ props, item }">
+                <v-list-item v-bind="props" :title="`${item.raw.kode} - ${item.raw.nama}`" />
+              </template>
+              <template #selection="{ item }">
+                <span class="text-caption">{{ item.raw.kode }} - {{ item.raw.nama }}</span>
+              </template>
+            </v-select>
           </div>
 
           <div class="f-row">
