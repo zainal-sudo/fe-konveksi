@@ -15,7 +15,7 @@ import {
 import { useQzPrint } from "@/composables/useQzPrint";
 import PrinterDialog from "@/components/PrinterDialog.vue";
 import PrintPreviewDialog from "@/components/PrintPreviewDialog.vue";
-import { generatePreviewFaktur, generateEscPosFaktur } from "@/utils/fakturPrint";
+import { generatePreviewFaktur, generateEscPosFaktur, generatePreviewFakturFullPage, generateEscPosFakturFullPage } from "@/utils/fakturPrint";
 
 const router = useRouter();
 const toast = useToast();
@@ -202,6 +202,53 @@ const doCetak = async () => {
   }
 };
 
+const doCetakFullPage = async () => {
+  if (!isSingleSelected.value) {
+    toast.warning("Pilih satu data penjualan terlebih dahulu.");
+    return;
+  }
+  const item = selectedItem.value!;
+  const savedPrinter = getSavedPrinter();
+  if (!savedPrinter) {
+    showPrinterDialog.value = true;
+    return;
+  }
+
+  isPrinting.value = true;
+  try {
+    const data = await penjualanApi.getPrintData(item.Nomor);
+    cachedPrintData.value = data;
+    previewLines.value = generatePreviewFakturFullPage(data);
+    showPreviewDialog.value = true;
+  } catch (e: any) {
+    toast.error(e.message || "Gagal memuat data cetak full page penjualan.");
+  } finally {
+    isPrinting.value = false;
+  }
+};
+
+const onPrintFullPageFromPreview = async () => {
+  showPreviewDialog.value = false;
+  const savedPrinter = getSavedPrinter();
+  if (!savedPrinter || !cachedPrintData.value) {
+    toast.warning("Printer belum diset.");
+    return;
+  }
+
+  isPrinting.value = true;
+  try {
+    const commands = generateEscPosFakturFullPage(cachedPrintData.value);
+    await connect();
+    await printRaw(savedPrinter, commands);
+    toast.success("Berhasil dikirim ke printer (Fullpage)!");
+  } catch (e: any) {
+    toast.error(e.message || "Gagal mencetak full page ke printer.");
+  } finally {
+    isPrinting.value = false;
+    cachedPrintData.value = null;
+  }
+};
+
 const onPrinterSaved = async () => {
   showPrinterDialog.value = false;
   if (isSingleSelected.value && cachedPrintData.value) {
@@ -317,9 +364,13 @@ const rowPropsFn = (data: any) => {
       <v-btn size="small" color="error" variant="tonal" :disabled="!selectedItem" @click="onHapus">
         Hapus
       </v-btn>
-      <v-btn size="small" variant="tonal" color="primary" :loading="isPrinting" :disabled="!isSingleSelected" @click="doCetak">
+       <v-btn size="small" variant="tonal" color="primary" :loading="isPrinting" :disabled="!isSingleSelected" @click="doCetak">
         <template #prepend><IconPrinter :size="13" :stroke-width="1.8" /></template>
         Cetak
+      </v-btn>
+      <v-btn size="small" variant="tonal" color="green-darken-3" :loading="isPrinting" :disabled="!isSingleSelected" @click="doCetakFullPage">
+        <template #prepend><IconPrinter :size="13" :stroke-width="1.8" /></template>
+        Cetak Fullpage
       </v-btn>
       <v-btn size="small" variant="tonal" color="success" @click="doExport">
         <template #prepend><IconFileSpreadsheet :size="13" :stroke-width="1.8" /></template>
@@ -443,7 +494,10 @@ const rowPropsFn = (data: any) => {
     title="Preview Faktur Penjualan"
     :lines="previewLines"
     :is-loading="isPrinting"
+    :show-full-page-btn="true"
+    full-page-btn-label="Cetak Fullpage"
     @print="onPrintFromPreview"
+    @print-full-page="onPrintFullPageFromPreview"
   />
 </template>
 

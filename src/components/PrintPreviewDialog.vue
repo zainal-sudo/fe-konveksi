@@ -7,11 +7,14 @@ const props = defineProps<{
   title?: string;
   lines: string[];
   isLoading?: boolean;
+  showFullPageBtn?: boolean;
+  fullPageBtnLabel?: string;
 }>();
 
 const emit = defineEmits<{
   "update:modelValue": [val: boolean];
   print: [pageNumbers: number[]];
+  "print-full-page": [];
 }>();
 
 // Lebar dialog mengikuti lebar teks cetakan (bukan 97vw flat), supaya tidak
@@ -165,6 +168,19 @@ const onPrint = () => {
       </template>
 
       <v-card-actions class="pa-4">
+        <v-btn
+          v-if="showFullPageBtn"
+          color="green-darken-3"
+          variant="flat"
+          class="text-white"
+          :loading="isLoading"
+          @click="emit('print-full-page')"
+        >
+          <template #prepend>
+            <IconPrinter :size="16" />
+          </template>
+          {{ fullPageBtnLabel || "Cetak Fullpage" }}
+        </v-btn>
         <v-spacer />
         <v-btn
           variant="text"

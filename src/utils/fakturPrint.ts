@@ -263,3 +263,51 @@ export const generateEscPosFaktur = (data: any): string[] => {
 
   return commands;
 };
+
+export const generatePreviewFakturFullPage = (data: any): string[] => {
+  const lines: string[] = [];
+  lines.push(...formatHeaderLinesFaktur(data));
+
+  let i = 0;
+  for (const d of data.detail) {
+    i++;
+    lines.push(formatDetailLineFaktur(i, d));
+  }
+
+  // Tanpa padding per halaman, langsung garis pemisah dan summary di bawah item terakhir
+  lines.push("-".repeat(totalW));
+  lines.push(...buildSummaryRows(data));
+
+  return lines;
+};
+
+export const generateEscPosFakturFullPage = (data: any): string[] => {
+  const NL = "\r\n";
+  const ESC = "\x1B";
+  const SI = "\x0F";
+  const commands: string[] = [];
+
+  commands.push(ESC + "@");
+  commands.push(SI);
+  commands.push(ESC + "2");
+  commands.push(ESC + "C\x00"); // Cancel fixed page length or let continuous feed handle full page
+  commands.push(ESC + "d" + "\x00");
+
+  for (const line of formatHeaderLinesFaktur(data)) {
+    commands.push(line + NL);
+  }
+
+  let i = 0;
+  for (const d of data.detail) {
+    i++;
+    commands.push(formatDetailLineFaktur(i, d) + NL);
+  }
+
+  commands.push("-".repeat(totalW) + NL);
+
+  for (const row of buildSummaryRows(data)) {
+    commands.push(row + NL);
+  }
+
+  return commands;
+};

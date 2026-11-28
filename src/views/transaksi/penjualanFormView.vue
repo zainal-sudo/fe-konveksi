@@ -19,7 +19,7 @@ import { penjualanApi } from "@/api/transaksi/penjualanApi";
 import { useQzPrint } from "@/composables/useQzPrint";
 import PrinterDialog from "@/components/PrinterDialog.vue";
 import PrintPreviewDialog from "@/components/PrintPreviewDialog.vue";
-import { generatePreviewFaktur, generateEscPosFaktur } from "@/utils/fakturPrint";
+import { generatePreviewFaktur, generateEscPosFaktur, generatePreviewFakturFullPage, generateEscPosFakturFullPage } from "@/utils/fakturPrint";
 
 const route = useRoute();
 const router = useRouter();
@@ -690,7 +690,7 @@ const onPrinterSaved = async () => {
   }
 };
 
-const onPrintFromPreview = async () => {
+const onPrintFullPageFromPreview = async () => {
   showPreviewDialog.value = false;
   const savedPrinter = getSavedPrinter();
   if (!savedPrinter || !cachedPrintData.value) {
@@ -700,12 +700,12 @@ const onPrintFromPreview = async () => {
 
   isPrinting.value = true;
   try {
-    const commands = generateEscPosFaktur(cachedPrintData.value);
+    const commands = generateEscPosFakturFullPage(cachedPrintData.value);
     await connect();
     await printRaw(savedPrinter, commands);
-    toast.success(`Faktur ${pendingPrintNomor.value} dikirim ke printer. Silakan lanjut input berikutnya.`);
+    toast.success(`Faktur ${pendingPrintNomor.value} (Fullpage) dikirim ke printer. Silakan lanjut input berikutnya.`);
   } catch (e: any) {
-    toast.error(e.message || "Gagal mencetak ke printer.");
+    toast.error(e.message || "Gagal mencetak full page ke printer.");
   } finally {
     isPrinting.value = false;
     cachedPrintData.value = null;
@@ -1300,7 +1300,10 @@ const fmtNumber = (v: number) => new Intl.NumberFormat("id-ID").format(v || 0);
       title="Preview Faktur Penjualan"
       :lines="previewLines"
       :is-loading="isPrinting"
+      :show-full-page-btn="true"
+      full-page-btn-label="Cetak Fullpage"
       @print="onPrintFromPreview"
+      @print-full-page="onPrintFullPageFromPreview"
     />
   </BaseForm>
 </template>
